@@ -4,6 +4,7 @@ export interface IUser {
   email: string;
   password_hash: string;
   role: "admin" | "teacher" | "student";
+  current_course: number | null;
   created_at?: Date;
 }
 

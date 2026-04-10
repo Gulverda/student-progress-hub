@@ -3,21 +3,20 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
-  ShieldCheck,
   UserPlus,
   Users,
-  Lock,
+  BookOpen,
   LogOut,
-  Bell,
   Mail,
   User,
-  CheckCircle2,
-  AlertCircle,
+  Lock,
   RefreshCw,
   Trash2,
-  BookOpen,
   PlusCircle,
   GraduationCap,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 export default function AdminPanel() {
@@ -25,43 +24,43 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [status, setStatus] = useState({ type: "", msg: "" });
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
     password: "",
     role: "student",
+    current_course: 1,
   });
 
   const [courseForm, setCourseForm] = useState({
     title: "",
     course_code: "",
     lecturer_id: "",
+    target_course: 1,
   });
-
-  const [status, setStatus] = useState({ type: "", msg: "" });
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const fetchUsers = async () => {
     try {
       const res = await api.get("/auth/users");
       setUsers(res.data);
     } catch (err) {
-      console.error("იუზერების წამოღება ვერ მოხერხდა");
+      console.error("იუზერების წამოღება ვერ მოხერხდა", err);
     }
   };
 
   const fetchCourseData = async () => {
     try {
-      const tRes = await api.get("/users/teachers");
+      const tRes = await api.get("/auth/teachers");
       setTeachers(tRes.data);
     } catch (err) {
       console.error("ლექტორების წამოღება ვერ მოხერხდა", err);
     }
-
     try {
-      const cRes = await api.get("/courses");
+      const cRes = await api.get("/courses/all");
       setCourses(cRes.data);
     } catch (err) {
       console.error("კურსების წამოღება ვერ მოხერხდა", err);
@@ -71,11 +70,9 @@ export default function AdminPanel() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const user = storedUser ? JSON.parse(storedUser) : null;
-
     if (!user || user.role !== "admin") {
       router.push("/dashboard");
     }
-
     if (activeTab === "list") fetchUsers();
     if (activeTab === "courses") fetchCourseData();
   }, [router, activeTab]);
@@ -92,17 +89,39 @@ export default function AdminPanel() {
       await api.post("/auth/register", formData);
       setStatus({
         type: "success",
-        msg: `მომხმარებელი ${formData.full_name} შეიქმნა!`,
+        msg: `${formData.full_name} წარმატებით დარეგისტრირდა!`,
       });
-      setFormData({ full_name: "", email: "", password: "", role: "student" });
-      if (activeTab === "list") fetchUsers();
+      setFormData({
+        full_name: "",
+        email: "",
+        password: "",
+        role: "student",
+        current_course: 1,
+      });
     } catch (err: any) {
       setStatus({
         type: "error",
-        msg: err.response?.data?.message || "შეცდომა რეგისტრაციისას",
+        msg: err.response?.data?.message || "რეგისტრაცია ვერ მოხერხდა",
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post("/courses/create", courseForm);
+      setCourseForm({
+        title: "",
+        course_code: "",
+        lecturer_id: "",
+        target_course: 1,
+      });
+      fetchCourseData();
+      alert("საგანი შეიქმნა და მიება სტუდენტებს!");
+    } catch (err) {
+      alert("შეცდომა საგნის შექმნისას");
     }
   };
 
@@ -117,32 +136,20 @@ export default function AdminPanel() {
     }
   };
 
-  const handleCreateCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post("/courses/create", courseForm);
-      alert("კურსი წარმატებით დაემატა!");
-      setCourseForm({ title: "", course_code: "", lecturer_id: "" });
-      fetchCourseData();
-    } catch (err) {
-      alert("კურსის შექმნა ვერ მოხერხდა");
-    }
-  };
-
   const deleteCourse = async (id: number) => {
-    if (confirm("წაიშალოს ეს კურსი?")) {
+    if (confirm("წაიშალოს ეს საგანი?")) {
       try {
         await api.delete(`/courses/${id}`);
-        setCourses(courses.filter((c: any) => c.id !== id));
+        fetchCourseData();
       } catch (err) {
-        alert("კურსის წაშლა ვერ მოხერხდა");
+        alert("საგნის წაშლა ვერ მოხერხდა");
       }
     }
   };
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
-      {/* --- SIDEBAR --- */}
+      {/* SIDEBAR */}
       <aside className="w-64 bg-[#101D2D] text-slate-400 flex flex-col shrink-0">
         <div className="p-6 mb-4">
           <div className="flex items-center gap-2 text-white text-xl font-black italic tracking-tighter">
@@ -176,7 +183,7 @@ export default function AdminPanel() {
             active={activeTab === "courses"}
             onClick={() => setActiveTab("courses")}
             icon={<BookOpen size={20} />}
-            label="Courses"
+            label="Courses Matrix"
           />
         </nav>
 
@@ -193,7 +200,7 @@ export default function AdminPanel() {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="text-sm font-bold text-slate-400">
@@ -207,9 +214,9 @@ export default function AdminPanel() {
 
         <div className="flex-1 overflow-y-auto p-8 lg:p-12">
           <div className="max-w-5xl mx-auto">
-            {/* --- TAB: ADD USER --- */}
+            {/* TAB: ADD USER */}
             {activeTab === "add" && (
-              <div className="animate-in fade-in duration-500">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="mb-10">
                   <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                     ახალი მომხმარებელი
@@ -218,6 +225,7 @@ export default function AdminPanel() {
                     სისტემური წვდომის მინიჭება
                   </p>
                 </div>
+
                 <form
                   onSubmit={handleCreateUser}
                   className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm space-y-6 max-w-2xl"
@@ -228,7 +236,7 @@ export default function AdminPanel() {
                       icon={<User size={18} />}
                       placeholder="გიორგი გიორგაძე"
                       value={formData.full_name}
-                      onChange={(val: any) =>
+                      onChange={(val: string) =>
                         setFormData({ ...formData, full_name: val })
                       }
                     />
@@ -249,16 +257,43 @@ export default function AdminPanel() {
                       </select>
                     </div>
                   </div>
+
+                  {/* current_course გამოჩნდეს მხოლოდ student-ისთვის */}
+                  {formData.role === "student" && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-400 ml-1">
+                        აკადემიური კურსი
+                      </label>
+                      <select
+                        className="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-700"
+                        value={formData.current_course}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            current_course: Number(e.target.value),
+                          })
+                        }
+                      >
+                        {[1, 2, 3, 4].map((n) => (
+                          <option key={n} value={n}>
+                            {n} კურსი
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <InputField
                     label="ელ-ფოსტა"
                     icon={<Mail size={18} />}
                     type="email"
                     placeholder="email@example.com"
                     value={formData.email}
-                    onChange={(val: any) =>
+                    onChange={(val: string) =>
                       setFormData({ ...formData, email: val })
                     }
                   />
+
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-400 ml-1">
                       დროებითი პაროლი
@@ -290,12 +325,14 @@ export default function AdminPanel() {
                       </button>
                     </div>
                   </div>
+
                   <button
                     disabled={loading}
                     className="w-full bg-[#101D2D] text-white font-bold py-4 rounded-2xl hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
                   >
                     {loading ? "მუშავდება..." : "მომხმარებლის შექმნა"}
                   </button>
+
                   {status.msg && (
                     <StatusMsg type={status.type} msg={status.msg} />
                   )}
@@ -303,7 +340,7 @@ export default function AdminPanel() {
               </div>
             )}
 
-            {/* --- TAB: USERS LIST --- */}
+            {/* TAB: USERS LIST */}
             {activeTab === "list" && (
               <div className="animate-in fade-in duration-500">
                 <h1 className="text-3xl font-black text-slate-900 mb-8">
@@ -314,10 +351,10 @@ export default function AdminPanel() {
                     <thead className="bg-slate-50/50 border-b border-slate-100">
                       <tr>
                         <th className="p-6 pl-10 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          მომხმარებელი
+                          სახელი / Email
                         </th>
                         <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          როლი
+                          როლი / კურსი
                         </th>
                         <th className="p-6 text-right pr-10 text-[10px] font-black uppercase tracking-widest text-slate-400">
                           მოქმედება
@@ -331,20 +368,24 @@ export default function AdminPanel() {
                           className="hover:bg-slate-50/50 transition-colors"
                         >
                           <td className="p-6 pl-10">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-700">
-                                {u.full_name}
-                              </span>
-                              <span className="text-xs text-slate-400">
-                                {u.email}
-                              </span>
+                            <div className="font-bold text-slate-700">
+                              {u.full_name}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {u.email}
                             </div>
                           </td>
                           <td className="p-6">
                             <span
-                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${u.role === "admin" ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-500"}`}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                u.role === "admin"
+                                  ? "bg-indigo-50 text-indigo-600"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
                             >
-                              {u.role}
+                              {u.role}{" "}
+                              {u.role === "student" &&
+                                `(${u.current_course} კურსი)`}
                             </span>
                           </td>
                           <td className="p-6 text-right pr-10">
@@ -363,21 +404,21 @@ export default function AdminPanel() {
               </div>
             )}
 
-            {/* --- TAB: COURSES MANAGEMENT --- */}
+            {/* TAB: COURSES MATRIX */}
             {activeTab === "courses" && (
               <div className="animate-in fade-in duration-500 space-y-10">
                 <div>
                   <h1 className="text-3xl font-black text-slate-900">
-                    სასწავლო კურსები
+                    აკადემიური ბადე
                   </h1>
                   <p className="text-slate-500 font-medium">
-                    მართე აკადემიური პროგრამები
+                    მართე საგნები კურსების მიხედვით
                   </p>
                 </div>
-                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm">
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <PlusCircle size={20} className="text-emerald-500" /> ახალი
-                    კურსის დამატება
+
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                  <h3 className="font-bold mb-6 flex items-center gap-2 text-indigo-600">
+                    <PlusCircle size={20} /> ახალი საგნის დამატება
                   </h3>
                   <form
                     onSubmit={handleCreateCourse}
@@ -387,25 +428,45 @@ export default function AdminPanel() {
                       label="დასახელება"
                       placeholder="მაგ: Node.js"
                       value={courseForm.title}
-                      onChange={(val: any) =>
-                        setCourseForm({ ...courseForm, title: val })
+                      onChange={(v: string) =>
+                        setCourseForm({ ...courseForm, title: v })
                       }
                     />
                     <InputField
                       label="კოდი"
                       placeholder="CS-202"
                       value={courseForm.course_code}
-                      onChange={(val: any) =>
-                        setCourseForm({ ...courseForm, course_code: val })
+                      onChange={(v: string) =>
+                        setCourseForm({ ...courseForm, course_code: v })
                       }
                     />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                        კურსი
+                      </label>
+                      <select
+                        className="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-2xl font-bold text-sm outline-none"
+                        value={courseForm.target_course}
+                        onChange={(e) =>
+                          setCourseForm({
+                            ...courseForm,
+                            target_course: Number(e.target.value),
+                          })
+                        }
+                      >
+                        {[1, 2, 3, 4].map((n) => (
+                          <option key={n} value={n}>
+                            {n} კურსის საგანი
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
                         ლექტორი
                       </label>
                       <select
-                        required
-                        className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold"
+                        className="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-2xl font-bold text-sm outline-none"
                         value={courseForm.lecturer_id}
                         onChange={(e) =>
                           setCourseForm({
@@ -422,37 +483,58 @@ export default function AdminPanel() {
                         ))}
                       </select>
                     </div>
-                    <button className="bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
-                      კურსის შექმნა
+                    <button className="bg-indigo-600 text-white font-bold py-3.5 rounded-2xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 md:col-span-4">
+                      შექმნა
                     </button>
                   </form>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {courses.map((course: any) => (
+
+                {/* კურსების ბადე target_course-ის მიხედვით */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {[1, 2, 3, 4].map((year) => (
                     <div
-                      key={course.id}
-                      className="bg-white p-6 rounded-[2.5rem] border border-slate-200 flex items-center justify-between group hover:border-indigo-400 transition-all shadow-sm"
+                      key={year}
+                      className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm relative overflow-hidden group"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                          <GraduationCap size={24} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">
-                            {course.title}
-                          </h4>
-                          <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">
-                            {course.course_code} •{" "}
-                            {course.professor_name || "არ არის ლექტორი"}
-                          </p>
-                        </div>
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <GraduationCap size={80} />
                       </div>
-                      <button
-                        onClick={() => deleteCourse(course.id)}
-                        className="p-2 text-slate-200 hover:text-rose-500 transition-colors"
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                      <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
+                        <Layers className="text-indigo-500" size={24} /> კურსი{" "}
+                        {year}
+                      </h2>
+                      <div className="space-y-3">
+                        {courses
+                          .filter((c: any) => c.target_course === year)
+                          .map((c: any) => (
+                            <div
+                              key={c.id}
+                              className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-indigo-100 transition"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-700">
+                                  {c.title}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                  {c.course_code && `${c.course_code} • `}
+                                  {c.professor_name || "ლექტორის გარეშე"}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => deleteCourse(c.id)}
+                                className="text-slate-300 hover:text-rose-500 transition"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          ))}
+                        {courses.filter((c: any) => c.target_course === year)
+                          .length === 0 && (
+                          <p className="text-center py-4 text-sm text-slate-400 italic">
+                            საგნები ჯერ არ არის
+                          </p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -465,12 +547,15 @@ export default function AdminPanel() {
   );
 }
 
-// --- HELPER COMPONENTS (იგივე დიზაინით) ---
 function TabButton({ active, onClick, icon, label }: any) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 w-full p-3.5 rounded-2xl text-sm font-bold transition-all ${active ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" : "hover:bg-slate-800 hover:text-white"}`}
+      className={`flex items-center gap-3 w-full p-3.5 rounded-2xl text-sm font-bold transition-all ${
+        active
+          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
+          : "hover:bg-slate-800 hover:text-white"
+      }`}
     >
       {icon} {label}
     </button>
@@ -502,7 +587,9 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full bg-slate-50 border border-slate-100 p-3.5 ${icon ? "pl-12" : "px-4"} rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition`}
+          className={`w-full bg-slate-50 border border-slate-100 p-3.5 ${
+            icon ? "pl-12" : "px-4"
+          } rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition font-bold`}
         />
       </div>
     </div>
@@ -512,7 +599,11 @@ function InputField({
 function StatusMsg({ type, msg }: any) {
   return (
     <div
-      className={`p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 ${type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-rose-50 text-rose-700 border border-rose-100"}`}
+      className={`p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 ${
+        type === "success"
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+          : "bg-rose-50 text-rose-700 border border-rose-100"
+      }`}
     >
       {type === "success" ? (
         <CheckCircle2 size={20} />

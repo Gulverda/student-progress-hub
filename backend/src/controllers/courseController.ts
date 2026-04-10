@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { query } from "../config/db";
 
-// 1. სტუდენტის კურსების წამოღება
+// 1. სტუდენტის მიმდინარე კურსების წამოღება
 export const getMyCourses = async (req: any, res: Response) => {
   const student_id = req.user.id;
   try {
@@ -19,22 +19,43 @@ export const getMyCourses = async (req: any, res: Response) => {
     res.status(500).json({ message: "კურსების წამოღება ვერ მოხერხდა" });
   }
 };
-// 2. ადმინისთვის: კურსის შექმნა
+
+// 2. ადმინისთვის: კურსის შექმნა + ავტომატური მიბმა იმ კურსის სტუდენტებზე
 export const createCourse = async (req: any, res: Response) => {
-  const { title, course_code, lecturer_id } = req.body;
+  const { title, course_code, lecturer_id, target_course } = req.body;
   try {
+    // ვქმნით საგანს
     const sql = `
-      INSERT INTO courses (title, course_code, lecturer_id)
-      VALUES ($1, $2, $3) RETURNING *`;
-    const result = await query(sql, [title, course_code, lecturer_id]);
-    res.status(201).json(result.rows[0]);
+      INSERT INTO courses (title, course_code, lecturer_id, target_course)
+      VALUES ($1, $2, $3, $4) RETURNING *`;
+    const result = await query(sql, [
+      title,
+      course_code,
+      lecturer_id,
+      target_course || 1,
+    ]);
+
+    const newCourse = result.rows[0];
+
+    // ავტომატურად ჩავყაროთ ყველა სტუდენტი, რომელიც ამ აკადემიურ წელზეა
+    await query(
+      `
+      INSERT INTO enrollments (student_id, course_id)
+      SELECT id, $1 FROM users 
+      WHERE role = 'student' AND current_course = $2
+      ON CONFLICT DO NOTHING
+    `,
+      [newCourse.id, target_course || 1],
+    );
+
+    res.status(201).json(newCourse);
   } catch (error) {
     console.error("❌ createCourse ERROR:", error);
     res.status(500).json({ message: "კურსის შექმნა ვერ მოხერხდა" });
   }
 };
 
-// 3. რეგისტრაცია (Enroll)
+// 3. ხელით რეგისტრაცია (თუ სტუდენტს დამატებითი საგანი უნდა)
 export const enrollInCourse = async (req: any, res: Response) => {
   const student_id = req.user.id;
   const { course_id } = req.body;
@@ -47,7 +68,7 @@ export const enrollInCourse = async (req: any, res: Response) => {
   }
 };
 
-// 4. მოხსნა (Unenroll - 7 დღიანი ვადა)
+// 4. კურსიდან მოხსნა (7 დღიანი ვადა)
 export const unenrollFromCourse = async (req: any, res: Response) => {
   const student_id = req.user.id;
   const { course_id } = req.params;
@@ -58,7 +79,6 @@ export const unenrollFromCourse = async (req: any, res: Response) => {
     if (checkResult.rows.length === 0)
       return res.status(404).json({ message: "რეგისტრაცია ვერ მოიძებნა" });
 
-    // აქ ვამოწმებთ დროს
     const enrolledAt = new Date(checkResult.rows[0].enrolled_at);
     const now = new Date();
     const diffDays = Math.ceil(
@@ -81,7 +101,7 @@ export const unenrollFromCourse = async (req: any, res: Response) => {
   }
 };
 
-// 5. თავისუფალი კურსები
+// 5. სხვა კურსები, სადაც სტუდენტი არ არის (არჩევითისთვის)
 export const getAvailableCourses = async (req: any, res: Response) => {
   const student_id = req.user.id;
   try {
@@ -100,7 +120,7 @@ export const getAvailableCourses = async (req: any, res: Response) => {
   }
 };
 
-// 6. ლექტორის კურსები
+// 6. ლექტორის საგნები
 export const getLecturerCourses = async (req: any, res: Response) => {
   const lecturer_id = req.user.id;
   try {
@@ -118,18 +138,35 @@ export const getLecturerCourses = async (req: any, res: Response) => {
   }
 };
 
-// 7. ყველა კურსის წამოღება (ადმინისთვის)
 export const getAllCourses = async (req: any, res: Response) => {
   try {
     const sql = `
-      SELECT c.*, u.full_name as professor_name 
+      SELECT 
+        c.id, 
+        c.title, 
+        c.course_code, 
+        c.target_course, 
+        c.lecturer_id,
+        u.full_name as professor_name 
       FROM courses c
       LEFT JOIN users u ON c.lecturer_id = u.id
-      ORDER BY c.id DESC
+      ORDER BY c.target_course ASC, c.id DESC
     `;
     const result = await query(sql);
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ message: "კურსების წამოღება ვერ მოხერხდა" });
+    console.error("🔥 GET ALL COURSES ERROR:", error); // ეს ტერმინალში დაგიწერს ზუსტ მიზეზს
+    res.status(500).json({ message: "საგნების წამოღება ვერ მოხერხდა ბაზიდან" });
+  }
+};
+
+// 8. კურსის წაშლა
+export const deleteCourse = async (req: any, res: Response) => {
+  const { id } = req.params;
+  try {
+    await query("DELETE FROM courses WHERE id = $1", [id]);
+    res.json({ message: "კურსი წაიშალა" });
+  } catch (error) {
+    res.status(500).json({ message: "წაშლა ვერ მოხერხდა" });
   }
 };
