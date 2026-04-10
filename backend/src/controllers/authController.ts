@@ -97,3 +97,15 @@ export const getTeachers = async (req: Request, res: Response) => {
     res.status(500).json({ message: "მასწავლებლების წამოღება ვერ მოხერხდა" });
   }
 };
+
+export const getMe = async (req: any, res: Response) => {
+  try {
+    const result = await query(
+      "SELECT id, full_name, email, role, current_course, gpa, balance, avatar_url, phone_number, id_number FROM users WHERE id = $1",
+      [req.user.id],
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: "შეცდომა პროფილის წამოღებისას" });
+  }
+};
