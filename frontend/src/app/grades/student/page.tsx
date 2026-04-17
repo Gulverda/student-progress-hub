@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Star,
 } from "lucide-react";
+import Sidebar from "@/app/components/Sidebar";
 
 // ─── Grade helpers ─────────────────────────────────────────────────────────
 
@@ -203,38 +204,7 @@ export default function StudentGradesPage() {
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-[#101D2D] text-slate-400 flex flex-col shrink-0">
-        <div className="p-6 mb-4 flex items-center gap-2 text-white text-xl font-black italic tracking-tighter">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <div className="w-4 h-4 bg-[#101D2D] rotate-45" />
-          </div>
-          UTOPIA
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1">
-          <div
-            onClick={() => router.push("/dashboard")}
-            className="cursor-pointer"
-          >
-            <NavItem icon={<LayoutGrid size={20} />} label="Dashboard" />
-          </div>
-          <NavItem
-            icon={<GraduationCap size={20} />}
-            label="My Grades"
-            active
-          />
-        </nav>
-
-        <div
-          className="p-4 mt-auto border-t border-slate-800 cursor-pointer"
-          onClick={() => {
-            localStorage.clear();
-            router.push("/login");
-          }}
-        >
-          <NavItem icon={<LogOut size={20} />} label="Logout" />
-        </div>
-      </aside>
+      <Sidebar role="student" activePath="/grades/student" />
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -244,10 +214,12 @@ export default function StudentGradesPage() {
             <span className="font-bold text-slate-800">ჩემი შეფასებები</span>
           </div>
           <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-            <img
-              src={`https://ui-avatars.com/api/?name=${user?.full_name || "S"}&background=random`}
-              alt=""
-            />
+            <a href="/profile">
+              <img
+                src={`https://ui-avatars.com/api/?name=${user?.full_name || "S"}&background=random`}
+                alt=""
+              />
+            </a>
           </div>
         </header>
 

@@ -19,6 +19,7 @@ import {
   X,
   Settings,
 } from "lucide-react";
+import Sidebar from "@/app/components/Sidebar";
 
 const WEEKS = Array.from({ length: 16 }, (_, i) => i + 1);
 
@@ -377,40 +378,7 @@ export default function GradebookPage() {
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-[#101D2D] text-slate-400 flex flex-col shrink-0">
-        <div className="p-6 mb-4 flex items-center gap-2 text-white text-xl font-black italic tracking-tighter">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <div className="w-4 h-4 bg-[#101D2D] rotate-45" />
-          </div>
-          UTOPIA
-        </div>
-        <nav className="flex-1 px-4 space-y-1">
-          <div
-            onClick={() => router.push("/dashboard")}
-            className="cursor-pointer"
-          >
-            <NavItem icon={<LayoutGrid size={20} />} label="Dashboard" />
-          </div>
-          <div
-            onClick={() => router.push("/teacher")}
-            className="cursor-pointer"
-          >
-            <NavItem icon={<Star size={20} />} label="Evaluate Students" />
-          </div>
-          <div className="cursor-pointer">
-            <NavItem icon={<BookOpen size={20} />} label="Gradebook" active />
-          </div>
-        </nav>
-        <div
-          className="p-4 mt-auto border-t border-slate-800 cursor-pointer"
-          onClick={() => {
-            localStorage.clear();
-            router.push("/login");
-          }}
-        >
-          <NavItem icon={<LogOut size={20} />} label="Logout" />
-        </div>
-      </aside>
+      <Sidebar role="teacher" activePath="/grades/teacher" />
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden">

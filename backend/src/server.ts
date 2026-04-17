@@ -9,24 +9,34 @@ import courseRoutes from "./routes/courseRoutes";
 import gradeRoutes from "./routes/gradeRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
 import evaluationsRoutes from "./routes/evaluationRoutes";
+import scheduleRoutes from "./routes/scheduleRoutes";
+import homeworkRoutes from "./routes/homeworkRoutes";
 import path from "path";
+import fs from "fs";
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
+
+// uploads დირექტორია უნდა არსებობდეს
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes - სახელები უნდა ემთხვეოდეს ფრონტენდის API გამოძახებებს
+// Static files
+app.use("/uploads", express.static(uploadsDir));
+
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/topics", topicRoutes);
 app.use("/api/evaluations", evaluationsRoutes);
 app.use("/api/grades", gradeRoutes);
 app.use("/api/settings", settingsRoutes);
-// server.ts-ში დაამატე ეს ხაზი, რომ ატვირთული ფაილები ხელმისაწვდომი იყოს
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/api/schedule", scheduleRoutes);
+app.use("/api/homeworks", homeworkRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Utopia API is Running! 🚀");

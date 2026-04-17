@@ -5,160 +5,208 @@ import {
   Phone,
   CreditCard,
   GraduationCap,
-  DollarSign,
   Award,
+  Hash,
+  Calendar,
+  BookOpen,
+  Briefcase,
 } from "lucide-react";
 
 export default function StudentProfile({ userData }: { userData: any }) {
-  // თუ მონაცემები ჯერ არ მოსულა
   if (!userData)
-    return (
-      <div className="p-8 text-center text-slate-500 font-bold">
-        იტვირთება...
-      </div>
-    );
+    return <div className="p-10 text-center animate-pulse">იტვირთება...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* მთავარი ბარათი */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
-        {/* ზედა ფონი */}
-        <div className="h-32 bg-gradient-to-r from-indigo-600 to-violet-600"></div>
+    <div className="max-w-5xl mx-auto p-4 md:p-10">
+      {/* მთავარი საიდენტიფიკაციო ბარათი */}
+      <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+        {/* ზედა ზოლი - სტატუსის ინდიკატორით */}
+        <div className="h-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600"></div>
 
-        <div className="px-8 pb-8">
-          <div className="relative flex flex-col md:flex-row items-center md:items-end gap-6 -mt-16">
-            {/* პროფილის ფოტო */}
-            <div className="w-32 h-32 rounded-[2rem] bg-white p-2 shadow-2xl">
-              <div className="w-full h-full rounded-[1.5rem] bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-100">
-                {userData.avatar_url ? (
-                  <img
-                    src={userData.avatar_url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User size={48} className="text-slate-300" />
-                )}
+        <div className="p-8 md:p-12">
+          {/*Header: Photo + Main Info */}
+          <div className="flex flex-col md:flex-row gap-10 items-start border-b border-slate-50 pb-10">
+            {/* პროფილის სურათი - "პასპორტის" სტილის ჩარჩო */}
+            <div className="relative shrink-0">
+              <div className="w-48 h-56 rounded-2xl bg-slate-50 border-2 border-slate-100 p-1 overflow-hidden">
+                <div className="w-full h-full rounded-xl bg-white flex items-center justify-center">
+                  {userData.avatar_url ? (
+                    <img
+                      src={userData.avatar_url}
+                      alt="Student"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={80} className="text-slate-200" />
+                  )}
+                </div>
+              </div>
+              <div className="absolute -top-3 -left-3 bg-indigo-600 text-white p-2 rounded-lg shadow-lg">
+                <GraduationCap size={20} />
               </div>
             </div>
 
-            {/* სახელი და სტატუსი */}
-            <div className="flex-1 text-center md:text-left pb-2">
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                {userData.full_name}
-              </h1>
-              <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
-                <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-black uppercase">
-                  {userData.current_course} კურსის სტუდენტი
-                </span>
-                <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-black uppercase">
-                  აქტიური
-                </span>
+            {/* სახელი და GPA - აქცენტირებული */}
+            <div className="flex-1 space-y-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                    სტუდენტის სახელი და გვარი
+                  </h2>
+                  <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+                    {userData.full_name}
+                  </h1>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                    GPA ქულა
+                  </span>
+                  <div className="text-4xl font-black text-indigo-600 italic">
+                    {userData.gpa || "2.15"}
+                  </div>
+                </div>
+              </div>
+
+              {/* სწრაფი სტატუსის ბარათები */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">
+                    სტატუსი
+                  </p>
+                  <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>{" "}
+                    აქტიური
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">
+                    სასწავლო წელი
+                  </p>
+                  <p className="text-xs font-bold text-slate-700">
+                    {userData.current_course}-ე კურსი
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">
+                    რეიტინგი
+                  </p>
+                  <p className="text-xs font-bold text-slate-700">#67</p>
+                </div>
+                <div className="bg-rose-50 rounded-xl p-4 border border-rose-100">
+                  <p className="text-[9px] font-black text-rose-400 uppercase mb-1">
+                    დავალიანება
+                  </p>
+                  <p
+                    className={`text-xs font-bold ${Number(userData.balance) > 0 ? "text-rose-600" : "text-slate-400"}`}
+                  >
+                    {userData.balance || "0"} ₾
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            {/* აკადემიური ინფო */}
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                აკადემიური
+          {/* დეტალური ინფორმაცია - ცხრილის სტილის დაყოფა */}
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8">
+            <section className="space-y-6">
+              <h3 className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-widest border-l-4 border-indigo-600 pl-3">
+                პირადი მონაცემები
               </h3>
-              <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500 shadow-sm">
-                    <Award size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">
-                      GPA
-                    </p>
-                    <p className="font-black text-slate-700">
-                      {userData.gpa || "0.00"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500 shadow-sm">
-                    <GraduationCap size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">
-                      კურსი
-                    </p>
-                    <p className="font-black text-slate-700">
-                      {userData.current_course} წელი
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* პირადი ინფორმაცია */}
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                კონტაქტი
-              </h3>
-              <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
-                <div className="flex items-center gap-4 text-slate-600">
-                  <Mail size={18} className="text-slate-400" />
-                  <span className="text-sm font-bold truncate">
-                    {userData.email}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-slate-600">
-                  <Phone size={18} className="text-slate-400" />
-                  <span className="text-sm font-bold">
-                    {userData.phone_number || "არ არის"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-slate-600">
-                  <CreditCard size={18} className="text-slate-400" />
-                  <span className="text-sm font-bold">
-                    {userData.id_number || "010XXXXXXXX"}
-                  </span>
-                </div>
+              <div className="space-y-4">
+                <InfoRow
+                  icon={<Hash size={16} />}
+                  label="პირადი ნომერი"
+                  value={userData.id_number || "010XXXXXXXX"}
+                />
+                <InfoRow
+                  icon={<Calendar size={16} />}
+                  label="დაბადების თარიღი"
+                  value="12/05/2002"
+                />
+                <InfoRow
+                  icon={<Mail size={16} />}
+                  label="ელ-ფოსტა"
+                  value={userData.email}
+                />
+                <InfoRow
+                  icon={<Phone size={16} />}
+                  label="მობილური"
+                  value={userData.phone_number || "5XX XX XX XX"}
+                />
               </div>
-            </div>
+            </section>
 
-            {/* ფინანსური ინფორმაცია */}
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                ფინანსები
+            <section className="space-y-6">
+              <h3 className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-widest border-l-4 border-indigo-600 pl-3">
+                აკადემიური მონაცემები
               </h3>
-              <div
-                className={`p-5 rounded-3xl border ${Number(userData.balance) > 0 ? "bg-rose-50 border-rose-100" : "bg-emerald-50 border-emerald-100"} space-y-2`}
-              >
-                <div className="flex items-center justify-between">
-                  <DollarSign
-                    size={24}
-                    className={
-                      Number(userData.balance) > 0
-                        ? "text-rose-500"
-                        : "text-emerald-500"
-                    }
-                  />
-                  <span
-                    className={`text-xl font-black ${Number(userData.balance) > 0 ? "text-rose-600" : "text-emerald-600"}`}
-                  >
-                    {userData.balance || "0.00"} ₾
-                  </span>
-                </div>
-                <p
-                  className={`text-[10px] font-bold uppercase ${Number(userData.balance) > 0 ? "text-rose-400" : "text-emerald-400"}`}
-                >
-                  {Number(userData.balance) > 0
-                    ? "მიმდინარე დავალიანება"
-                    : "ბალანსი სუფთაა"}
-                </p>
+
+              <div className="space-y-4">
+                <InfoRow
+                  icon={<Briefcase size={16} />}
+                  label="ფაკულტეტი"
+                  value="ინფორმატიკისა და ინჟინერიის სკოლა"
+                />
+                <InfoRow
+                  icon={<BookOpen size={16} />}
+                  label="სპეციალობა"
+                  value="კომპიუტერული მეცნიერება"
+                />
+                <InfoRow
+                  icon={<Hash size={16} />}
+                  label="სტუდენტის ID"
+                  value="555108"
+                />
+                <InfoRow
+                  icon={<Award size={16} />}
+                  label="გრანტი"
+                  value="100% სახელმწიფო გრანტი"
+                />
               </div>
-              <button className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black uppercase text-slate-600 hover:bg-slate-50 transition">
-                გადახდის ისტორია
-              </button>
-            </div>
+            </section>
           </div>
         </div>
+
+        {/* Footer / QR Code Placeholder */}
+        <div className="bg-slate-50 p-6 flex justify-between items-center border-t border-slate-100">
+          <div className="flex gap-2">
+            <div className="w-8 h-8 bg-white rounded-md border border-slate-200"></div>
+            <div className="w-8 h-8 bg-white rounded-md border border-slate-200"></div>
+            <div className="w-8 h-8 bg-white rounded-md border border-slate-200"></div>
+          </div>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+            Digital Identity System • Utopia Hub 2024
+          </p>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// დამხმარე კომპონენტი ხაზებისთვის (Row)
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-slate-50 group hover:border-indigo-100 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-slate-400 group-hover:text-indigo-500 transition-colors">
+          {icon}
+        </span>
+        <span className="text-xs font-bold text-slate-400 uppercase">
+          {label}:
+        </span>
+      </div>
+      <span className="text-sm font-black text-slate-700 tracking-tight">
+        {value}
+      </span>
     </div>
   );
 }

@@ -4,20 +4,18 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
   Search,
-  LayoutGrid,
   BookOpen,
   GraduationCap,
-  LogOut,
   Star,
   Loader2,
   Quote,
-  PlusCircle,
   XCircle,
   ShieldCheck,
   FileText,
   Link2,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import Sidebar from "../components/Sidebar";
 
 export default function UtopiaDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -127,62 +125,16 @@ export default function UtopiaDashboard() {
 
   const isUpload = (fileUrl: string) => fileUrl?.startsWith("/uploads/");
 
+  // console.log("User Data:", user.role, user);
+
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#101D2D] text-slate-400 flex flex-col shrink-0">
-        <div className="p-6 mb-4 text-white text-xl font-black italic tracking-tighter flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <div className="w-4 h-4 bg-[#101D2D] rotate-45"></div>
-          </div>
-          UTOPIA
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1">
-          <NavItem icon={<LayoutGrid size={20} />} label="Dashboard" active />
-
-          {user?.role === "admin" && (
-            <div
-              onClick={() => setShowAdminModal(true)}
-              className="cursor-pointer"
-            >
-              <NavItem
-                icon={<PlusCircle size={20} className="text-emerald-400" />}
-                label="Create Course"
-              />
-            </div>
-          )}
-
-          {(user?.role === "teacher" || user?.role === "admin") && (
-            <div
-              onClick={() => router.push("/teacher")}
-              className="cursor-pointer"
-            >
-              <NavItem
-                icon={<Star size={20} className="text-purple-400" />}
-                label="Evaluate Students"
-              />
-            </div>
-          )}
-
-          <div className="pt-6 pb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            Academic
-          </div>
-          <NavItem icon={<CalendarIcon size={20} />} label="Schedule" />
-          <NavItem icon={<BookOpen size={20} />} label="Homeworks" />
-          <NavItem
-            icon={<GraduationCap size={20} />}
-            label="Enrolled Courses"
-          />
-        </nav>
-
-        <div
-          className="p-4 mt-auto border-t border-slate-800 cursor-pointer"
-          onClick={handleLogout}
-        >
-          <NavItem icon={<LogOut size={20} />} label="Logout" />
-        </div>
-      </aside>
+      <Sidebar
+        role={user?.role || "student" || "teacher" || "admin"}
+        activePath="/dashboard"
+        onCreateCourse={() => setShowAdminModal(true)}
+      />
 
       {/* MAIN */}
       <main className="flex-1 flex flex-col overflow-hidden">
