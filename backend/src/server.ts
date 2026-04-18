@@ -11,6 +11,7 @@ import settingsRoutes from "./routes/settingsRoutes";
 import evaluationsRoutes from "./routes/evaluationRoutes";
 import scheduleRoutes from "./routes/scheduleRoutes";
 import homeworkRoutes from "./routes/homeworkRoutes";
+import taskTemplateRoutes from "./routes/tasktemplateRoutes";
 import path from "path";
 import fs from "fs";
 
@@ -37,6 +38,7 @@ app.use("/api/grades", gradeRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/schedule", scheduleRoutes);
 app.use("/api/homeworks", homeworkRoutes);
+app.use("/api/task-templates", taskTemplateRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Utopia API is Running! 🚀");

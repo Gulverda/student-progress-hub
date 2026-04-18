@@ -113,8 +113,19 @@ export const createHomework = async (req: Request, res: Response) => {
       `,
       [course_id, title, description || "", due_date, max_score, userId],
     );
+    const newHomework = result.rows[0];
 
-    res.status(201).json(result.rows[0]);
+    // Auto-save to task_templates if it doesn't already exist
+    await query(
+      `INSERT INTO task_templates (title, description, level, max_score, created_by)
+   SELECT $1, $2, 'beginner', $3, $4
+   WHERE NOT EXISTS (
+     SELECT 1 FROM task_templates WHERE title = $1 AND created_by = $4
+   )`,
+      [title, description || "", max_score, userId],
+    );
+
+    res.status(201).json(newHomework);
   } catch (err) {
     console.error("🔥 CREATE_HOMEWORK_ERROR:", err); // შეხედეთ ტერმინალს, აქ დაწერს ზუსტ მიზეზს
     res

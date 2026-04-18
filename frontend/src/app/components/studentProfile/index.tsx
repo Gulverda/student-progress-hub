@@ -156,7 +156,7 @@ export default function StudentProfile({ userData }: { userData: any }) {
                 <InfoRow
                   icon={<Hash size={16} />}
                   label="სტუდენტის ID"
-                  value="555108"
+                  value={userData.id || "5XXXXX"}
                 />
                 <InfoRow
                   icon={<Award size={16} />}
@@ -169,7 +169,7 @@ export default function StudentProfile({ userData }: { userData: any }) {
         </div>
 
         {/* Footer / QR Code Placeholder */}
-        <div className="bg-slate-50 p-6 flex justify-between items-center border-t border-slate-100">
+        {/* <div className="bg-slate-50 p-6 flex justify-between items-center border-t border-slate-100">
           <div className="flex gap-2">
             <div className="w-8 h-8 bg-white rounded-md border border-slate-200"></div>
             <div className="w-8 h-8 bg-white rounded-md border border-slate-200"></div>
@@ -178,7 +178,7 @@ export default function StudentProfile({ userData }: { userData: any }) {
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
             Digital Identity System • Utopia Hub 2024
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
