@@ -20,6 +20,7 @@ import {
   Settings,
 } from "lucide-react";
 import Sidebar from "@/app/components/Sidebar";
+import PageHeader from "@/app/components/PageHeader/inedx";
 
 const WEEKS = Array.from({ length: 16 }, (_, i) => i + 1);
 
@@ -382,7 +383,20 @@ export default function GradebookPage() {
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <PageHeader icon={BookOpen} title="ჟურნალი">
+          {semesterStart && (
+            <span className="bg-indigo-50 text-indigo-700 text-xs font-black px-4 py-2 rounded-full border border-indigo-100">
+              კვირა {currentWeek} / 16
+            </span>
+          )}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
+          >
+            <Settings size={14} /> პარამეტრები
+          </button>
+        </PageHeader>
+        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <BookOpen size={18} className="text-indigo-600" />
             <span className="font-bold text-slate-800">Gradebook</span>
@@ -414,7 +428,7 @@ export default function GradebookPage() {
               />
             </div>
           </div>
-        </header>
+        </header> */}
 
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {/* Controls */}

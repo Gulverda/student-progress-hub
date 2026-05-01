@@ -1,8 +1,8 @@
 import { Response } from "express";
 import { query } from "../config/db";
 import { AuthenticatedRequest } from "../types/express";
+import { createNotification } from "./notificationController";
 
-// ქულის გამოთვლის ლოგიკა
 export const calculateLetterGrade = (score: number): string => {
   if (score >= 91) {
     if (score >= 97) return "A+";
@@ -32,7 +32,6 @@ export const calculateLetterGrade = (score: number): string => {
   return "F";
 };
 
-// 1. ლექტორი სვამს / განაახლებს ქულას
 export const submitGrade = async (req: AuthenticatedRequest, res: Response) => {
   const lecturer_id = req.user?.id;
   const { student_id, course_id, week, score, type } = req.body;
@@ -47,12 +46,6 @@ export const submitGrade = async (req: AuthenticatedRequest, res: Response) => {
     const weeklyVal = type !== "midterm" && type !== "final" ? score : null;
     const weekKey = week?.toString() ?? null;
 
-    // ── INSERT ──────────────────────────────────────────────────────────────
-    // weekly_scores: midterm/final დროს ვდებთ ცარიელ '{}'::jsonb-ს,
-    //               quiz დროს ვდებთ { "weekKey": score }-ს
-    // ── UPDATE ──────────────────────────────────────────────────────────────
-    // weekly_scores: quiz დროს ვამატებთ/ვაახლებთ კვირის ჩანაწერს,
-    //               midterm/final დროს ვტოვებთ უცვლელად
     const sql = `
       INSERT INTO grades
         (student_id, course_id, lecturer_id, midterm_score, final_score, weekly_scores)
@@ -83,12 +76,10 @@ export const submitGrade = async (req: AuthenticatedRequest, res: Response) => {
         lecturer_id = EXCLUDED.lecturer_id,
         total_score = LEAST(100, (
           COALESCE(
-            CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE grades.midterm_score END,
-            0
+            CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE grades.midterm_score END, 0
           ) +
           COALESCE(
-            CASE WHEN $5::numeric IS NOT NULL THEN $5::numeric ELSE grades.final_score END,
-            0
+            CASE WHEN $5::numeric IS NOT NULL THEN $5::numeric ELSE grades.final_score END, 0
           ) +
           (
             SELECT COALESCE(SUM(val.value::numeric), 0)
@@ -107,14 +98,39 @@ export const submitGrade = async (req: AuthenticatedRequest, res: Response) => {
     `;
 
     const result = await query(sql, [
-      student_id, // $1
-      course_id, // $2
-      lecturer_id, // $3
-      midtermVal, // $4
-      finalVal, // $5
-      weekKey, // $6  (კვირის გასაღები, მაგ. "3")
-      weeklyVal, // $7  (quiz ქულა, midterm/final დროს null)
+      student_id,
+      course_id,
+      lecturer_id,
+      midtermVal,
+      finalVal,
+      weekKey,
+      weeklyVal,
     ]);
+
+    // 🔔 კურსის სახელი notification-ისთვის
+    const meta = await query(
+      `SELECT c.title AS course_title FROM courses c WHERE c.id = $1`,
+      [course_id],
+    );
+    const courseTitle = meta.rows[0]?.course_title ?? "კურსი";
+
+    // ტიპის მიხედვით message
+    let notifMsg = "";
+    if (type === "midterm") {
+      notifMsg = `შუალედური გამოცდა შეფასდა — ${score} ქ. · ${courseTitle}`;
+    } else if (type === "final") {
+      notifMsg = `დასკვნითი გამოცდა შეფასდა — ${score} ქ. · ${courseTitle}`;
+    } else {
+      notifMsg = `კვირა ${week}-ის ქულა დაემატა — ${score} ქ. · ${courseTitle}`;
+    }
+
+    // 🔔 სტუდენტს
+    await createNotification({
+      userId: Number(student_id),
+      type: "grade",
+      title: "ქულა დაემატა",
+      message: notifMsg,
+    });
 
     res.status(200).json(result.rows[0]);
   } catch (error) {
@@ -123,7 +139,6 @@ export const submitGrade = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-// 2. სტუდენტი ხედავს თავის ქულებს
 export const getMyGrades = async (req: AuthenticatedRequest, res: Response) => {
   const student_id = req.user?.id;
   try {
@@ -143,7 +158,6 @@ export const getMyGrades = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-// 3. ლექტორი ხედავს კურსის ქულებს
 export const getCourseGrades = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -177,7 +191,6 @@ export const getCourseGrades = async (
   }
 };
 
-// 4. ლექტორი / ადმინი ხედავს სტუდენტების სიას კვირის ქულებით
 export const getCourseStudentsWithGrades = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -187,7 +200,6 @@ export const getCourseStudentsWithGrades = async (
   const userRole = (req.user as any)?.role;
 
   try {
-    // admin ყველა კურსს ხედავს, lecturer — მხოლოდ თავისას
     const courseCheck =
       userRole === "admin"
         ? await query("SELECT id, title FROM courses WHERE id = $1", [
@@ -202,7 +214,6 @@ export const getCourseStudentsWithGrades = async (
       return res.status(403).json({ message: "წვდომა აკრძალულია" });
     }
 
-    // weekly_scores ჩართულია — { "1": 3.5, "2": 4, ... } ფორმატი
     const sql = `
       SELECT
         u.id          AS student_id,
@@ -217,25 +228,19 @@ export const getCourseStudentsWithGrades = async (
         g.updated_at  AS graded_at
       FROM enrollments e
       JOIN users u ON e.student_id = u.id
-      LEFT JOIN grades g
-        ON g.student_id = u.id
-       AND g.course_id  = $1
+      LEFT JOIN grades g ON g.student_id = u.id AND g.course_id = $1
       WHERE e.course_id = $1
       ORDER BY u.full_name ASC
     `;
 
     const result = await query(sql, [course_id]);
-    res.json({
-      course: courseCheck.rows[0],
-      students: result.rows,
-    });
+    res.json({ course: courseCheck.rows[0], students: result.rows });
   } catch (error) {
     console.error("getCourseStudentsWithGrades ERROR:", error);
     res.status(500).json({ message: "მონაცემების წამოღება ვერ მოხერხდა" });
   }
 };
 
-// 5. ადმინი ხედავს ყველაფერს
 export const getAllGrades = async (
   req: AuthenticatedRequest,
   res: Response,

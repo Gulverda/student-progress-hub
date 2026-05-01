@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import StudentProfile from "@/app/components/studentProfile"; // შეამოწმე სწორია თუ არა გზა
 import Sidebar from "@/app/components/Sidebar";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, User } from "lucide-react";
+import PageHeader from "../components/PageHeader/inedx";
 
 export default function ProfilePage() {
   const [userData, setUserData] = useState<any>(null);
@@ -51,7 +52,8 @@ export default function ProfilePage() {
 
       {/* 2. მარჯვენა მხარე - კონტენტი */}
       <main className="flex-1 overflow-y-auto">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <PageHeader icon={User} title="პროფილი" />
+        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-3">
             <GraduationCap size={18} className="text-indigo-600" />
             <span className="font-bold text-slate-800">ჩემი შეფასებები</span>
@@ -64,7 +66,7 @@ export default function ProfilePage() {
               />
             </a>
           </div>
-        </header>
+        </header> */}
         <div className="container mx-auto py-8">
           <StudentProfile userData={userData} />
         </div>

@@ -15,8 +15,10 @@ import {
   ArrowRight,
   BookMarked,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import Sidebar from "@/app/components/Sidebar";
+import PageHeader from "../components/PageHeader/inedx";
 
 interface Course {
   id: number;
@@ -118,6 +120,12 @@ export default function TeacherPage() {
   }, [selectedCourse]);
 
   const openLibrary = async () => {
+    const levelMap: Record<string, Level | "all"> = {
+      "1": "beginner",
+      "2": "intermediate",
+      "3": "advanced",
+    };
+    setLibFilter(levelMap[level] ?? "all");
     setShowLibrary(true);
     if (templates.length > 0) return;
     setLibLoading(true);
@@ -181,14 +189,16 @@ export default function TeacherPage() {
       <Sidebar role="teacher" activePath="/teacher" />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
           <h2 className="font-bold text-slate-800 flex items-center gap-2 text-xs uppercase tracking-widest">
             <Star size={16} className="text-indigo-600" /> Evaluation Hub
           </h2>
           <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-[10px]">
             LG
           </div>
-        </header>
+        </header> */}
+
+        <PageHeader icon={Star} title="შეფასებები" />
 
         <div className="flex-1 overflow-y-auto p-12 flex justify-center">
           <div className="w-full max-w-[500px] space-y-8">

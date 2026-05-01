@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { query } from "../config/db";
+import { createNotification } from "./notificationController";
 import path from "path";
 import fs from "fs";
 
@@ -88,17 +89,16 @@ export const createHomework = async (req: Request, res: Response) => {
     const userId = (req as any).user?.id;
     const { course_id, title, description, due_date, max_score } = req.body;
 
-    // 1. ვალიდაცია
     if (!course_id || !title || !due_date || !max_score) {
       return res
         .status(400)
         .json({ message: "ყველა სავალდებულო ველი შეავსეთ" });
     }
 
-    // 2. შემოწმება: არსებობს თუ არა ეს კურსი საერთოდ?
-    const courseCheck = await query("SELECT id FROM courses WHERE id = $1", [
-      course_id,
-    ]);
+    const courseCheck = await query(
+      "SELECT id, title FROM courses WHERE id = $1",
+      [course_id],
+    );
     if (courseCheck.rows.length === 0) {
       return res
         .status(404)
@@ -106,28 +106,42 @@ export const createHomework = async (req: Request, res: Response) => {
     }
 
     const result = await query(
-      `
-      INSERT INTO homeworks (course_id, title, description, due_date, max_score, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-      `,
+      `INSERT INTO homeworks (course_id, title, description, due_date, max_score, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [course_id, title, description || "", due_date, max_score, userId],
     );
     const newHomework = result.rows[0];
 
-    // Auto-save to task_templates if it doesn't already exist
+    // Auto-save to task_templates
     await query(
       `INSERT INTO task_templates (title, description, level, max_score, created_by)
-   SELECT $1, $2, 'beginner', $3, $4
-   WHERE NOT EXISTS (
-     SELECT 1 FROM task_templates WHERE title = $1 AND created_by = $4
-   )`,
+       SELECT $1, $2, 'beginner', $3, $4
+       WHERE NOT EXISTS (
+         SELECT 1 FROM task_templates WHERE title = $1 AND created_by = $4
+       )`,
       [title, description || "", max_score, userId],
+    );
+
+    // 🔔 Notification — კურსზე ჩარიცხულ სტუდენტებს
+    const enrolled = await query(
+      `SELECT student_id FROM enrollments WHERE course_id = $1`,
+      [course_id],
+    );
+    const courseTitle = courseCheck.rows[0].title;
+    await Promise.allSettled(
+      enrolled.rows.map((r) =>
+        createNotification({
+          userId: r.student_id,
+          type: "homework",
+          title: "ახალი დავალება",
+          message: `"${title}" დაემატა — ${courseTitle}`,
+        }),
+      ),
     );
 
     res.status(201).json(newHomework);
   } catch (err) {
-    console.error("🔥 CREATE_HOMEWORK_ERROR:", err); // შეხედეთ ტერმინალს, აქ დაწერს ზუსტ მიზეზს
+    console.error("🔥 CREATE_HOMEWORK_ERROR:", err);
     res
       .status(500)
       .json({ message: "სერვერის შეცდომა: დარწმუნდით რომ მონაცემები სწორია" });
@@ -185,9 +199,7 @@ export const getSubmissions = async (req: Request, res: Response) => {
 
     const result = await query(
       `
-      SELECT
-        sub.*,
-        u.full_name AS student_name
+      SELECT sub.*, u.full_name AS student_name
       FROM homework_submissions sub
       JOIN users u ON u.id = sub.student_id
       WHERE sub.homework_id = $1
@@ -204,7 +216,7 @@ export const getSubmissions = async (req: Request, res: Response) => {
 };
 
 // ─────────────────────────────────────────────
-// POST /api/homeworks/submit  (student, multipart/form-data)
+// POST /api/homeworks/submit  (student)
 // ─────────────────────────────────────────────
 export const submitHomework = async (req: Request, res: Response) => {
   try {
@@ -217,7 +229,7 @@ export const submitHomework = async (req: Request, res: Response) => {
     }
 
     const hwResult = await query(
-      "SELECT due_date FROM homeworks WHERE id = $1",
+      "SELECT h.due_date, h.title, h.created_by, c.title AS course_title FROM homeworks h JOIN courses c ON c.id = h.course_id WHERE h.id = $1",
       [homework_id],
     );
     if (hwResult.rows.length === 0) {
@@ -238,19 +250,35 @@ export const submitHomework = async (req: Request, res: Response) => {
     const fileUrl = uploadedFile
       ? `/uploads/${uploadedFile.filename}`
       : linkUrl || null;
-
     if (!fileUrl) {
       return res.status(400).json({ message: "ფაილი ან ლინკი საჭიროა" });
     }
 
     const result = await query(
-      `
-      INSERT INTO homework_submissions (homework_id, student_id, file_url, submitted_at)
-      VALUES ($1, $2, $3, NOW())
-      RETURNING *
-      `,
+      `INSERT INTO homework_submissions (homework_id, student_id, file_url, submitted_at)
+       VALUES ($1, $2, $3, NOW()) RETURNING *`,
       [homework_id, studentId, fileUrl],
     );
+
+    // 🔔 Notification — სტუდენტს დასტური + ლექტორს შეტყობინება
+    const hw = hwResult.rows[0];
+
+    await Promise.allSettled([
+      // სტუდენტს
+      createNotification({
+        userId: studentId,
+        type: "homework",
+        title: "დავალება ჩაბარდა",
+        message: `"${hw.title}" წარმატებით ჩაბარდა`,
+      }),
+      // ლექტორს
+      createNotification({
+        userId: hw.created_by,
+        type: "homework",
+        title: "ახალი ჩაბარება",
+        message: `სტუდენტმა ჩააბარა "${hw.title}" — ${hw.course_title}`,
+      }),
+    ]);
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -272,32 +300,37 @@ export const gradeSubmission = async (req: Request, res: Response) => {
     }
 
     const subResult = await query(
-      `
-      SELECT h.max_score
-      FROM homework_submissions sub
-      JOIN homeworks h ON h.id = sub.homework_id
-      WHERE sub.id = $1
-      `,
+      `SELECT sub.student_id, h.max_score, h.title
+       FROM homework_submissions sub
+       JOIN homeworks h ON h.id = sub.homework_id
+       WHERE sub.id = $1`,
       [id],
     );
     if (subResult.rows.length === 0) {
       return res.status(404).json({ message: "სუბმისია ვერ მოიძებნა" });
     }
-    if (Number(score) > subResult.rows[0].max_score) {
+
+    const { max_score, student_id, title } = subResult.rows[0];
+
+    if (Number(score) > max_score) {
       return res.status(400).json({
-        message: `ქულა არ შეიძლება აღემატებოდეს ${subResult.rows[0].max_score}-ს`,
+        message: `ქულა არ შეიძლება აღემატებოდეს ${max_score}-ს`,
       });
     }
 
     const result = await query(
-      `
-      UPDATE homework_submissions
-      SET score = $1, feedback = $2
-      WHERE id = $3
-      RETURNING *
-      `,
+      `UPDATE homework_submissions SET score = $1, feedback = $2
+       WHERE id = $3 RETURNING *`,
       [Number(score), feedback || null, id],
     );
+
+    // 🔔 Notification — სტუდენტს ქულის შესახებ
+    await createNotification({
+      userId: student_id,
+      type: "grade",
+      title: "დავალება შეფასდა",
+      message: `"${title}" — ${score}/${max_score}${feedback ? ` · "${feedback}"` : ""}`,
+    });
 
     res.status(200).json(result.rows[0]);
   } catch (err) {

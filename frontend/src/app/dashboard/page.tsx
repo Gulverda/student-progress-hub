@@ -16,6 +16,8 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import EvaluationCard from "../components/evaluations";
+import ChatWidget from "../components/ChatWidget";
 
 export default function UtopiaDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -169,7 +171,7 @@ export default function UtopiaDashboard() {
           </div>
 
           {/* EVALUATIONS */}
-          {(user?.role === "student" || user?.role === "teacher") && (
+          {/* {(user?.role === "student" || user?.role === "teacher") && (
             <section className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -301,8 +303,12 @@ export default function UtopiaDashboard() {
                 </div>
               )}
             </section>
-          )}
-
+          )} */}
+          <EvaluationCard
+            evaluations={evaluations}
+            userRole={user?.role}
+            loading={loadingEvals}
+          />
           {/* MY COURSES */}
           <section className="space-y-6">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -381,6 +387,7 @@ export default function UtopiaDashboard() {
           )}
         </div>
       </main>
+      <ChatWidget />
 
       {/* ADMIN MODAL */}
       {showAdminModal && (

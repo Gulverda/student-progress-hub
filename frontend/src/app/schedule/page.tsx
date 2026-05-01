@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import PageHeader from "../components/PageHeader/inedx";
 
 const DAYS = ["ორშ", "სამ", "ოთხ", "ხუთ", "პარ", "შაბ"];
 const DAYS_FULL = [
@@ -203,7 +204,17 @@ export default function SchedulePage() {
 
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <PageHeader icon={Calendar} title="განრიგი">
+          {canEdit && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
+            >
+              <Plus size={14} /> გაკვეთილის დამატება
+            </button>
+          )}
+        </PageHeader>
+        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-3">
             <Calendar size={18} className="text-indigo-600" />
             <span className="font-bold text-slate-800">განრიგი</span>
@@ -224,7 +235,7 @@ export default function SchedulePage() {
               />
             </div>
           </div>
-        </header>
+        </header> */}
 
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {/* Title row */}

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { query } from "../config/db";
+import { createNotification } from "./notificationController";
 
 export const submitEvaluation = async (req: any, res: Response) => {
   const {
@@ -38,6 +39,28 @@ export const submitEvaluation = async (req: any, res: Response) => {
       teacher_feedback,
       finalFileUrl,
     ]);
+
+    // 🔔 კურსის სახელი + ლექტორის სახელი notification-ისთვის
+    const meta = await query(
+      `SELECT c.title AS course_title, u.full_name AS lecturer_name
+       FROM courses c
+       JOIN users u ON u.id = $1
+       WHERE c.id = $2`,
+      [lecturer_id, topic_id],
+    );
+
+    const levelLabel: Record<number, string> = { 1: "I", 2: "II", 3: "III" };
+    const lvl = levelLabel[parsedLevel] ?? parsedLevel;
+    const courseTitle = meta.rows[0]?.course_title ?? "კურსი";
+    const lecturerName = meta.rows[0]?.lecturer_name ?? "ლექტორი";
+
+    // 🔔 სტუდენტს
+    await createNotification({
+      userId: Number(student_id),
+      type: "evaluation",
+      title: "ახალი შეფასება",
+      message: `${lecturerName}-მა შეაფასა — ${courseTitle} · დონე ${lvl}${teacher_feedback ? ` · "${teacher_feedback}"` : ""}`,
+    });
 
     res.status(200).json({
       message: "შეფასება შენახულია",
@@ -82,10 +105,12 @@ export const getMyEvaluations = async (req: any, res: Response) => {
     res.json(result.rows || []);
   } catch (error: any) {
     console.error("SQL ERROR:", error.message);
-    res.status(500).json({
-      message: "მონაცემების წამოღება ვერ მოხერხდა",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({
+        message: "მონაცემების წამოღება ვერ მოხერხდა",
+        error: error.message,
+      });
   }
 };
 

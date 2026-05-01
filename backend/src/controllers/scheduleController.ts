@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
-import { query } from "../config/db"; // იმპორტი შენი ფაილის მიხედვით
+import { query } from "../config/db";
+import { createNotification } from "./notificationController";
 
 export const getSchedule = async (req: Request, res: Response) => {
   try {
     const result = await query(`
-      SELECT 
-        s.*, 
-        c.title AS course_title, 
+      SELECT
+        s.*,
+        c.title AS course_title,
         u.full_name AS lecturer_name
       FROM schedule s
       JOIN courses c ON s.course_id = c.id
@@ -25,12 +26,44 @@ export const createSchedule = async (req: Request, res: Response) => {
   const { course_id, day_of_week, start_time, end_time, room, color_index } =
     req.body;
 
+  const DAYS_GEO = [
+    "ორშაბათი",
+    "სამშაბათი",
+    "ოთხშაბათი",
+    "ხუთშაბათი",
+    "პარასკევი",
+    "შაბათი",
+  ];
+
   try {
     const result = await query(
       `INSERT INTO schedule (course_id, day_of_week, start_time, end_time, room, color_index)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [course_id, day_of_week, start_time, end_time, room, color_index],
+    );
+
+    // 🔔 კურსზე ჩარიცხულ სტუდენტებს
+    const meta = await query(
+      `SELECT c.title AS course_title, e.student_id
+       FROM courses c
+       JOIN enrollments e ON e.course_id = c.id
+       WHERE c.id = $1`,
+      [course_id],
+    );
+
+    const courseTitle = meta.rows[0]?.course_title ?? "კურსი";
+    const dayName = DAYS_GEO[Number(day_of_week)] ?? "";
+
+    await Promise.allSettled(
+      meta.rows.map((r) =>
+        createNotification({
+          userId: r.student_id,
+          type: "general",
+          title: "განრიგი განახლდა",
+          message: `${courseTitle} — ${dayName} ${start_time}–${end_time}${room ? ` · ${room}` : ""} დაემატა`,
+        }),
+      ),
     );
 
     res.status(201).json(result.rows[0]);

@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express, { Application, Request, Response } from "express";
+import http from "http"; // ← NEW: needed for Socket.io
 import cors from "cors";
 import authRoutes from "./routes/authRoutes";
 import topicRoutes from "./routes/topicRoutes";
@@ -11,11 +12,18 @@ import settingsRoutes from "./routes/settingsRoutes";
 import evaluationsRoutes from "./routes/evaluationRoutes";
 import scheduleRoutes from "./routes/scheduleRoutes";
 import homeworkRoutes from "./routes/homeworkRoutes";
-import taskTemplateRoutes from "./routes/tasktemplateRoutes";
+import taskTemplateRoutes from "./routes/taskTemplateRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import chatRoutes from "./routes/chatRoutes"; // ← NEW
+import { initSocket } from "./socket"; // ← NEW
+import { ensureChatTables } from "./controllers/chatController"; // ← NEW
 import path from "path";
 import fs from "fs";
 
 const app: Application = express();
+// ── Create HTTP server (required for Socket.io) ─────────────
+const httpServer = http.createServer(app);
+
 const PORT = process.env.PORT || 5000;
 
 // uploads დირექტორია უნდა არსებობდეს
@@ -39,11 +47,22 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/schedule", scheduleRoutes);
 app.use("/api/homeworks", homeworkRoutes);
 app.use("/api/task-templates", taskTemplateRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/chat", chatRoutes); // ← NEW
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Utopia API is Running! 🚀");
 });
 
-app.listen(PORT, () => {
+// ── Init Socket.io ───────────────────────────────────────────
+const io = initSocket(httpServer); // ← NEW
+
+// ── Ensure chat DB tables exist ──────────────────────────────
+ensureChatTables() // ← NEW
+  .then(() => console.log("✅ Chat tables ready"))
+  .catch((err) => console.error("❌ Chat table init error:", err));
+
+// ── Listen on httpServer instead of app ─────────────────────
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server: http://localhost:${PORT}`);
 });

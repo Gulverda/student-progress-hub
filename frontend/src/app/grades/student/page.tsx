@@ -14,6 +14,7 @@ import {
   Star,
 } from "lucide-react";
 import Sidebar from "@/app/components/Sidebar";
+import PageHeader from "@/app/components/PageHeader/inedx";
 
 // ─── Grade helpers ─────────────────────────────────────────────────────────
 
@@ -208,7 +209,9 @@ export default function StudentGradesPage() {
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <PageHeader icon={GraduationCap} title="ჩემი შეფასებები" />
+
+        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-3">
             <GraduationCap size={18} className="text-indigo-600" />
             <span className="font-bold text-slate-800">ჩემი შეფასებები</span>
@@ -221,7 +224,7 @@ export default function StudentGradesPage() {
               />
             </a>
           </div>
-        </header>
+        </header> */}
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           <div className="flex justify-between items-end">
