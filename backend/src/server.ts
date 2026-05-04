@@ -7,6 +7,7 @@ import cors from "cors";
 import authRoutes from "./routes/authRoutes";
 import topicRoutes from "./routes/topicRoutes";
 import courseRoutes from "./routes/courseRoutes";
+import catchupRoutes from "./routes/catchupRoutes";
 import gradeRoutes from "./routes/gradeRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
 import evaluationsRoutes from "./routes/evaluationRoutes";
@@ -40,6 +41,7 @@ app.use("/uploads", express.static(uploadsDir));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/catchup", catchupRoutes);
 app.use("/api/topics", topicRoutes);
 app.use("/api/evaluations", evaluationsRoutes);
 app.use("/api/grades", gradeRoutes);

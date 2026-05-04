@@ -10,6 +10,7 @@ import {
   PlusCircle,
   Calendar,
   ClipboardList,
+  Zap,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -136,6 +137,12 @@ export default function Sidebar({
               label="Gradebook"
               active={is("/grades/teacher")}
               onClick={() => go("/grades/teacher")}
+            />
+            <NavItem
+              icon={<Zap size={20} />}
+              label="Catch-up"
+              active={is("/catchup")}
+              onClick={() => go("/catchup")}
             />
           </>
         )}

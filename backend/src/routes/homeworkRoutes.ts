@@ -11,6 +11,11 @@ import {
   getSubmissions,
   submitHomework,
   gradeSubmission,
+  getTemplates,
+  getTemplateStats,
+  createTemplate,
+  bulkCreateTemplates,
+  assignTemplate,
 } from "../controllers/homeworkController";
 
 const router = Router();
@@ -37,5 +42,12 @@ router.post("/submissions/:id/grade", verifyToken, gradeSubmission);
 // ── Student ───────────────────────────────────
 router.get("/student", verifyToken, getStudentHomeworks);
 router.post("/submit", verifyToken, upload.single("file"), submitHomework);
+
+// ── Template (საწყობი) routes ─────────────────
+router.get("/templates/:courseId", verifyToken, getTemplates);
+router.get("/templates/:courseId/stats", verifyToken, getTemplateStats);
+router.post("/templates", verifyToken, createTemplate);
+router.post("/templates/bulk", verifyToken, bulkCreateTemplates);
+router.post("/templates/:id/assign", verifyToken, assignTemplate);
 
 export default router;
