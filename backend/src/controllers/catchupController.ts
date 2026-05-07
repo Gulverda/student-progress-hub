@@ -5,11 +5,11 @@ import {
   getCourseStudentPredictions,
   retrainModel,
 } from "../services/mlService";
+import { generateCatchupTasks as geminiGenerate } from "../services/geminiService"; // ← alias
 import { createNotification } from "./notificationController";
 
 // ─────────────────────────────────────────────
 // GET /api/catchup/course/:courseId/students
-// კურსის სტუდენტები ML პრედიქციით (ლექტორისთვის)
 // ─────────────────────────────────────────────
 export const getCourseStudents = async (req: Request, res: Response) => {
   try {
@@ -24,7 +24,6 @@ export const getCourseStudents = async (req: Request, res: Response) => {
 
 // ─────────────────────────────────────────────
 // GET /api/catchup/predict/:courseId/:studentId
-// ერთი სტუდენტის პრედიქცია
 // ─────────────────────────────────────────────
 export const getStudentPrediction = async (req: Request, res: Response) => {
   try {
@@ -43,94 +42,115 @@ export const getStudentPrediction = async (req: Request, res: Response) => {
 };
 
 // ─────────────────────────────────────────────
-// POST /api/catchup/generate
-// AI დავალებების გენერაცია შაბლონებიდან
+// POST /api/catchup/generate  ← მხოლოდ ეს რჩება
+// ML + Gemini ერთად
 // ─────────────────────────────────────────────
-export const generateCatchupTasks = async (req: Request, res: Response) => {
+export const generateCatchupTasksHandler = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const { student_id, course_id } = req.body;
     const lecturerId = (req as any).user?.id;
 
-    // ML-დან სტუდენტის პრედიქცია
+    // 1. ML პრედიქცია
     const prediction = await predictStudent(
       Number(course_id),
       Number(student_id),
     );
     const difficulty = prediction.recommended_difficulty;
 
-    // შაბლონებიდან ამ სირთულის დავალებები
+    // 2. გავლილი შაბლონები — Gemini-სთვის მაგალითები
     const templates = await query(
-      `SELECT * FROM homeworks
-       WHERE course_id = $1
-         AND difficulty = $2
-         AND is_template = TRUE
-       ORDER BY week_number, id
-       LIMIT 5`,
+      `SELECT title, description FROM homeworks
+       WHERE course_id = $1 AND is_template = TRUE AND difficulty = $2
+       ORDER BY week_number LIMIT 5`,
       [course_id, difficulty],
     );
 
-    if (templates.rows.length === 0) {
-      return res.status(404).json({
-        message: `${difficulty} სირთულის შაბლონები ვერ მოიძებნა`,
-      });
-    }
+    // 3. სუსტი თემები — evaluation feedback-დან
+    const feedbacks = await query(
+      `SELECT teacher_feedback FROM evaluations
+       WHERE student_id = $1 AND course_id = $2
+         AND teacher_feedback IS NOT NULL
+       ORDER BY created_at DESC LIMIT 3`,
+      [student_id, course_id],
+    );
+    const weakTopics = feedbacks.rows
+      .map((r: any) => r.teacher_feedback)
+      .filter(Boolean);
 
-    // Draft სახით შენახვა (is_template=FALSE, status='draft')
+    // 4. Gemini — დავალებების გენერაცია
+    const generated = await geminiGenerate({
+      studentName: prediction.student_name,
+      courseTitle: prediction.course_title,
+      difficulty,
+      weakTopics,
+      currentWeek: prediction.profile.current_week,
+      missedHw: prediction.profile.missed_homeworks,
+      exampleTasks: templates.rows,
+    });
+
+    // 5. DB-ში Draft სახით შენახვა
     const drafts = [];
-    for (const tmpl of templates.rows) {
-      const result = await query(
+    for (const task of generated) {
+      const r = await query(
         `INSERT INTO homeworks
-           (course_id, created_by, title, description, difficulty,
-            week_number, is_template, due_date, max_score)
-         VALUES ($1, $2, $3, $4, $5, $6, FALSE, '2099-01-01', $7)
-         RETURNING *`,
+     (course_id, created_by, title, description, difficulty,
+      is_template, due_date, max_score, assigned_student_id)
+   VALUES ($1, $2, $3, $4, $5, FALSE, '2099-01-01', 100, $6)
+   RETURNING *`,
         [
           course_id,
           lecturerId,
-          tmpl.title,
-          tmpl.description,
-          tmpl.difficulty,
-          tmpl.week_number,
-          tmpl.max_score,
+          task.title,
+          `${task.description}\n\n💡 მინიშნება: ${task.hint}`,
+          task.difficulty,
+          student_id,
         ],
       );
-      drafts.push(result.rows[0]);
+      drafts.push(r.rows[0]);
     }
 
     res.status(201).json({
       prediction,
       drafts,
-      message: `${drafts.length} დავალება გენერირდა — ${difficulty} სირთულე`,
+      message: `${drafts.length} დავალება გენერირდა Gemini-ით — ${difficulty}`,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("GENERATE_CATCHUP_ERROR:", err);
-    res.status(500).json({ message: "გენერაცია ვერ მოხერხდა" });
+    res.status(500).json({ message: err.message ?? "გენერაცია ვერ მოხერხდა" });
   }
 };
 
 // ─────────────────────────────────────────────
 // POST /api/catchup/send/:homeworkId
-// ლექტორი ადასტურებს და სტუდენტს უგზავნის
 // ─────────────────────────────────────────────
 export const sendCatchupTask = async (req: Request, res: Response) => {
   try {
     const { homeworkId } = req.params;
     const { student_id, due_date } = req.body;
 
-    // Draft → რეალური დავალება
     const hw = await query(
-      `UPDATE homeworks
-       SET due_date = $1
-       WHERE id = $2
-       RETURNING *`,
-      [due_date, homeworkId],
+      `UPDATE homeworks 
+   SET due_date = $1,
+       assigned_student_id = $2  -- ✅ სტუდენტს მიაბი
+   WHERE id = $3
+   RETURNING *`,
+      [due_date, student_id, homeworkId],
     );
 
     if (hw.rows.length === 0) {
       return res.status(404).json({ message: "დავალება ვერ მოიძებნა" });
     }
 
-    // სტუდენტს notification
+    // ✅ სტუდენტი კურსზე enrolled უნდა იყოს რომ დავალება დაინახოს
+    await query(
+      `INSERT INTO enrollments (student_id, course_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [student_id, hw.rows[0].course_id],
+    );
+
     await createNotification({
       userId: student_id,
       type: "homework",
@@ -138,10 +158,7 @@ export const sendCatchupTask = async (req: Request, res: Response) => {
       message: `"${hw.rows[0].title}" — ${hw.rows[0].difficulty} სირთულე`,
     });
 
-    res.json({
-      message: "დავალება გაიგზავნა",
-      homework: hw.rows[0],
-    });
+    res.json({ message: "დავალება გაიგზავნა", homework: hw.rows[0] });
   } catch (err) {
     console.error("SEND_CATCHUP_ERROR:", err);
     res.status(500).json({ message: "გაგზავნა ვერ მოხერხდა" });
@@ -150,7 +167,6 @@ export const sendCatchupTask = async (req: Request, res: Response) => {
 
 // ─────────────────────────────────────────────
 // POST /api/catchup/retrain  (admin only)
-// მოდელის ხელახლა დატრენინგება
 // ─────────────────────────────────────────────
 export const triggerRetrain = async (req: Request, res: Response) => {
   try {

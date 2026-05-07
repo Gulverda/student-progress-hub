@@ -3,7 +3,7 @@ import { protect, authorize } from "../middleware/authMiddleware";
 import {
   getCourseStudents,
   getStudentPrediction,
-  generateCatchupTasks,
+  generateCatchupTasksHandler,
   sendCatchupTask,
   triggerRetrain,
 } from "../controllers/catchupController";
@@ -23,7 +23,12 @@ router.get(
   authorize("teacher"),
   getStudentPrediction,
 );
-router.post("/generate", protect, authorize("teacher"), generateCatchupTasks);
+router.post(
+  "/generate",
+  protect,
+  authorize("teacher"),
+  generateCatchupTasksHandler,
+);
 router.post(
   "/send/:homeworkId",
   protect,

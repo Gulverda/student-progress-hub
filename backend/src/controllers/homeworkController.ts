@@ -21,6 +21,7 @@ export const getMyHomeworks = async (req: Request, res: Response) => {
         FROM homeworks h
         JOIN courses c ON c.id = h.course_id
         JOIN users   u ON u.id = h.created_by
+        WHERE h.is_template = FALSE
         ORDER BY h.due_date DESC
       `);
     } else {
@@ -32,6 +33,7 @@ export const getMyHomeworks = async (req: Request, res: Response) => {
         JOIN courses c ON c.id = h.course_id
         JOIN users   u ON u.id = h.created_by
         WHERE h.created_by = $1
+          AND h.is_template = FALSE
         ORDER BY h.due_date DESC
         `,
         [userId],
@@ -44,7 +46,6 @@ export const getMyHomeworks = async (req: Request, res: Response) => {
     res.status(500).json({ message: "დავალებების წამოღება ვერ მოხერხდა" });
   }
 };
-
 // ─────────────────────────────────────────────
 // GET /api/homeworks/student  (student)
 // ─────────────────────────────────────────────
@@ -54,23 +55,22 @@ export const getStudentHomeworks = async (req: Request, res: Response) => {
 
     const result = await query(
       `
-      SELECT
-        h.*,
-        c.title                    AS course_title,
-        u.full_name                AS created_by_name,
-        sub.id                     AS submission_id,
-        sub.submitted_at,
-        sub.file_url,
-        sub.score,
-        sub.feedback
-      FROM homeworks h
-      JOIN courses c ON c.id = h.course_id
-      JOIN users   u ON u.id = h.created_by
-      JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
-      LEFT JOIN homework_submissions sub
-             ON sub.homework_id = h.id AND sub.student_id = $1
-      ORDER BY h.due_date ASC
-      `,
+          SELECT DISTINCT ON (h.id)
+                h.*, c.title AS course_title,
+                u.full_name  AS created_by_name,
+                sub.id       AS submission_id,
+                sub.submitted_at, sub.file_url,
+                sub.score, sub.feedback
+          FROM homeworks h
+          JOIN courses c ON c.id = h.course_id
+          JOIN users   u ON u.id = h.created_by
+          JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+          LEFT JOIN homework_submissions sub
+                ON sub.homework_id = h.id AND sub.student_id = $1
+          WHERE h.is_template = FALSE
+            AND h.due_date != '2099-01-01 00:00:00'
+          ORDER BY h.id, h.due_date ASC
+        `,
       [userId],
     );
 
@@ -80,7 +80,6 @@ export const getStudentHomeworks = async (req: Request, res: Response) => {
     res.status(500).json({ message: "დავალებების წამოღება ვერ მოხერხდა" });
   }
 };
-
 // ─────────────────────────────────────────────
 // POST /api/homeworks  (teacher)
 // ─────────────────────────────────────────────
