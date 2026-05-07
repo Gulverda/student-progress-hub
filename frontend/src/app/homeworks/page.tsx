@@ -34,7 +34,6 @@ interface Homework {
   due_date: string;
   max_score: number;
   created_by_name: string;
-  // student view extras:
   submission_id?: number;
   submitted_at?: string;
   file_url?: string;
@@ -62,8 +61,9 @@ function statusInfo(hw: Homework, isStudent: boolean) {
       border: "border-rose-200",
     };
   }
-  const diffMs = due.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.ceil(
+    (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (diffDays <= 2) {
     return {
       label: `${diffDays} დღე`,
@@ -93,7 +93,11 @@ export default function HomeworksPage() {
     msg: string;
   } | null>(null);
 
-  // Create form (teacher)
+  // ✅ კურსის ფილტრი (ლექტორისთვის)
+  const [selectedCourseId, setSelectedCourseId] = useState<number | "all">(
+    "all",
+  );
+
   const [createForm, setCreateForm] = useState({
     course_id: "",
     title: "",
@@ -103,14 +107,12 @@ export default function HomeworksPage() {
   });
   const [creating, setCreating] = useState(false);
 
-  // Submit state (student) — per homework
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [submitFiles, setSubmitFiles] = useState<Record<number, File | null>>(
     {},
   );
   const [submitLinks, setSubmitLinks] = useState<Record<number, string>>({});
 
-  // Grade modal (teacher)
   const [gradeModal, setGradeModal] = useState<{
     hwId: number;
     submissionId: number;
@@ -119,7 +121,6 @@ export default function HomeworksPage() {
   const [gradeForm, setGradeForm] = useState({ score: "", feedback: "" });
   const [grading, setGrading] = useState(false);
 
-  // Submissions view (teacher)
   const [submissions, setSubmissions] = useState<Record<number, any[]>>({});
   const [loadingSubs, setLoadingSubs] = useState<number | null>(null);
 
@@ -130,6 +131,11 @@ export default function HomeworksPage() {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 2800);
   };
+
+  // ✅ ფილტრი — კურსის მიხედვით
+  const filteredHomeworks = homeworks.filter((hw) =>
+    selectedCourseId === "all" ? true : hw.course_id === selectedCourseId,
+  );
 
   const fetchHomeworks = useCallback(async () => {
     setLoading(true);
@@ -170,7 +176,6 @@ export default function HomeworksPage() {
 
   const toggleExpand = async (hwId: number) => {
     setExpanded((prev) => ({ ...prev, [hwId]: !prev[hwId] }));
-    // Teacher: fetch submissions when expanding
     if (isTeacher && !submissions[hwId]) {
       setLoadingSubs(hwId);
       try {
@@ -291,8 +296,36 @@ export default function HomeworksPage() {
       <Sidebar role={user?.role ?? "student"} activePath="/homeworks" />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <PageHeader icon={BookOpen} title="დავალებები">
+          {/* ✅ კურსის ფილტრი — მხოლოდ ლექტორს */}
+          {isTeacher && courses.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setSelectedCourseId("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedCourseId === "all"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                ყველა
+              </button>
+              {courses.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCourseId(c.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    selectedCourseId === c.id
+                      ? "bg-indigo-600 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {c.title}
+                </button>
+              ))}
+            </div>
+          )}
+
           {isTeacher && (
             <button
               onClick={() => setShowCreateModal(true)}
@@ -301,29 +334,8 @@ export default function HomeworksPage() {
               <Plus size={14} /> დავალების შექმნა
             </button>
           )}
-        </PageHeader>{" "}
-        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-3">
-            <BookOpen size={18} className="text-indigo-600" />
-            <span className="font-bold text-slate-800">დავალებები</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {isTeacher && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
-              >
-                <Plus size={14} /> დავალების შექმნა
-              </button>
-            )}
-            <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-              <img
-                src={`https://ui-avatars.com/api/?name=${user?.full_name || "U"}&background=random`}
-                alt=""
-              />
-            </div>
-          </div>
-        </header> */}
+        </PageHeader>
+
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
@@ -338,14 +350,18 @@ export default function HomeworksPage() {
             <div className="flex items-center justify-center py-32 text-slate-400 gap-3">
               <Loader2 className="animate-spin" size={20} /> იტვირთება...
             </div>
-          ) : homeworks.length === 0 ? (
+          ) : filteredHomeworks.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 p-16 text-center">
               <BookOpen size={32} className="text-slate-200 mx-auto mb-3" />
-              <p className="font-bold text-slate-400">დავალებები არ მოიძებნა</p>
+              <p className="font-bold text-slate-400">
+                {isTeacher && selectedCourseId !== "all"
+                  ? "ამ კურსზე დავალებები არ მოიძებნა"
+                  : "დავალებები არ მოიძებნა"}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {homeworks.map((hw) => {
+              {filteredHomeworks.map((hw) => {
                 const open = expanded[hw.id];
                 const status = statusInfo(hw, !!isStudent);
                 const isOverdue =
@@ -360,19 +376,20 @@ export default function HomeworksPage() {
                     key={hw.id}
                     className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden"
                   >
-                    {/* Card header */}
                     <button
                       onClick={() => toggleExpand(hw.id)}
                       className="w-full flex items-center gap-5 p-6 px-8 text-left hover:bg-slate-50/50 transition-colors"
                     >
-                      {/* Icon */}
                       <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isOverdue && isStudent ? "bg-rose-50 text-rose-500" : "bg-indigo-50 text-indigo-600"}`}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                          isOverdue && isStudent
+                            ? "bg-rose-50 text-rose-500"
+                            : "bg-indigo-50 text-indigo-600"
+                        }`}
                       >
                         <FileText size={22} />
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-slate-800 text-base truncate">
                           {hw.title}
@@ -383,7 +400,6 @@ export default function HomeworksPage() {
                         </p>
                       </div>
 
-                      {/* Due date */}
                       <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs font-bold shrink-0">
                         <Calendar size={13} />
                         <span>
@@ -391,20 +407,17 @@ export default function HomeworksPage() {
                         </span>
                       </div>
 
-                      {/* Max score */}
                       <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs font-bold shrink-0">
                         <Star size={13} />
                         <span>{hw.max_score} ქ.</span>
                       </div>
 
-                      {/* Teacher: submissions count */}
                       {isTeacher && (
                         <span className="shrink-0 text-xs font-black px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600">
                           {gradedCount}/{hwSubs.length || "?"} შეფ.
                         </span>
                       )}
 
-                      {/* Student: status badge */}
                       {isStudent && status && (
                         <span
                           className={`shrink-0 text-xs font-black px-3 py-1.5 rounded-xl border ${status.bg} ${status.text} ${status.border}`}
@@ -426,22 +439,19 @@ export default function HomeworksPage() {
                       )}
                     </button>
 
-                    {/* Expanded content */}
                     {open && (
                       <div className="border-t border-slate-100 px-8 py-6 space-y-6">
-                        {/* Description */}
                         {hw.description && (
                           <div className="bg-slate-50 rounded-2xl p-5">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
                               დავალების აღწერა
                             </p>
-                            <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                            <p className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line">
                               {hw.description}
                             </p>
                           </div>
                         )}
 
-                        {/* Meta row */}
                         <div className="flex flex-wrap gap-3">
                           <MetaPill
                             icon={<Calendar size={13} />}
@@ -470,7 +480,7 @@ export default function HomeworksPage() {
                           />
                         </div>
 
-                        {/* ── STUDENT: submission area ── */}
+                        {/* ── STUDENT ── */}
                         {isStudent && (
                           <div className="space-y-4">
                             {hw.submission_id ? (
@@ -532,8 +542,7 @@ export default function HomeworksPage() {
                                   className="text-rose-500 shrink-0"
                                 />
                                 <p className="text-sm font-bold text-rose-600">
-                                  ჩაბარების ვადა გასულია. დავალება ვეღარ
-                                  ჩაბარდება.
+                                  ჩაბარების ვადა გასულია.
                                 </p>
                               </div>
                             ) : (
@@ -543,7 +552,11 @@ export default function HomeworksPage() {
                                 </p>
                                 <div className="flex gap-3">
                                   <label
-                                    className={`flex-1 cursor-pointer flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed transition-all ${submitFiles[hw.id] ? "bg-emerald-50 border-emerald-200 text-emerald-600" : "bg-slate-50 border-slate-200 text-slate-400 hover:border-indigo-300"}`}
+                                    className={`flex-1 cursor-pointer flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed transition-all ${
+                                      submitFiles[hw.id]
+                                        ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                                        : "bg-slate-50 border-slate-200 text-slate-400 hover:border-indigo-300"
+                                    }`}
                                   >
                                     <Upload size={20} className="mb-1" />
                                     <span className="text-[10px] font-black uppercase">
@@ -612,7 +625,7 @@ export default function HomeworksPage() {
                           </div>
                         )}
 
-                        {/* ── TEACHER: submissions list ── */}
+                        {/* ── TEACHER ── */}
                         {isTeacher && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -706,7 +719,7 @@ export default function HomeworksPage() {
         </div>
       </main>
 
-      {/* Create Modal (teacher) */}
+      {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -739,7 +752,6 @@ export default function HomeworksPage() {
                   ))}
                 </select>
               </ModalField>
-
               <ModalField label="სათაური">
                 <input
                   required
@@ -752,7 +764,6 @@ export default function HomeworksPage() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </ModalField>
-
               <ModalField label="აღწერა">
                 <textarea
                   placeholder="დავალების სრული პირობა..."
@@ -767,7 +778,6 @@ export default function HomeworksPage() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </ModalField>
-
               <div className="grid grid-cols-2 gap-4">
                 <ModalField label="ბოლო ვადა">
                   <input
@@ -797,7 +807,6 @@ export default function HomeworksPage() {
                   />
                 </ModalField>
               </div>
-
               <button
                 disabled={creating}
                 className="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/30 disabled:opacity-60 flex items-center justify-center gap-2"
@@ -814,7 +823,7 @@ export default function HomeworksPage() {
         </div>
       )}
 
-      {/* Grade Modal (teacher) */}
+      {/* Grade Modal */}
       {gradeModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm">
@@ -880,7 +889,11 @@ export default function HomeworksPage() {
 
       {toast && (
         <div
-          className={`fixed bottom-8 right-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-bold z-50 ${toast.type === "ok" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}`}
+          className={`fixed bottom-8 right-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-bold z-50 ${
+            toast.type === "ok"
+              ? "bg-emerald-600 text-white"
+              : "bg-rose-600 text-white"
+          }`}
         >
           {toast.type === "ok" ? (
             <CheckCircle2 size={18} />
