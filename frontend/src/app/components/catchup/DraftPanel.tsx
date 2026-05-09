@@ -96,13 +96,23 @@ export default function DraftPanel({
               <p className="font-bold text-sm text-slate-800 flex-1 pr-2">
                 {draft.title}
               </p>
-              <span
-                className={`text-[11px] font-black px-2 py-0.5 rounded-lg shrink-0 ${
-                  DIFF_COLOR[draft.difficulty]
-                }`}
-              >
-                {DIFF_LABEL[draft.difficulty]}
-              </span>
+              <div className="flex gap-1 shrink-0">
+                {/* ✅ AI vs Existing badge */}
+                {draft.source === "ai" ? (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-purple-100 text-purple-700">
+                    ✨ AI
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500">
+                    📚 შაბლონი
+                  </span>
+                )}
+                <span
+                  className={`text-[11px] font-black px-2 py-0.5 rounded-lg ${DIFF_COLOR[draft.difficulty]}`}
+                >
+                  {DIFF_LABEL[draft.difficulty]}
+                </span>
+              </div>
             </div>
 
             {draft.description && (

@@ -68,7 +68,7 @@ export const generateCatchupTasksHandler = async (
       [course_id, difficulty],
     );
 
-    // 3. სუსტი თემები — evaluation feedback-დან
+    // 3. სუსტი თემები
     const feedbacks = await query(
       `SELECT teacher_feedback FROM evaluations
        WHERE student_id = $1 AND course_id = $2
@@ -80,7 +80,7 @@ export const generateCatchupTasksHandler = async (
       .map((r: any) => r.teacher_feedback)
       .filter(Boolean);
 
-    // 4. Gemini — დავალებების გენერაცია
+    // 4. Groq — 3 AI დავალების გენერაცია
     const generated = await geminiGenerate({
       studentName: prediction.student_name,
       courseTitle: prediction.course_title,
@@ -91,31 +91,45 @@ export const generateCatchupTasksHandler = async (
       exampleTasks: templates.rows,
     });
 
-    // 5. DB-ში Draft სახით შენახვა
-    const drafts = [];
+    // 5. AI დავალებები DB-ში Draft სახით
+    const aiDrafts = [];
     for (const task of generated) {
       const r = await query(
         `INSERT INTO homeworks
-     (course_id, created_by, title, description, difficulty,
-      is_template, due_date, max_score, assigned_student_id)
-   VALUES ($1, $2, $3, $4, $5, FALSE, '2099-01-01', 100, $6)
-   RETURNING *`,
+           (course_id, created_by, title, description, difficulty,
+            is_template, due_date, max_score)
+         VALUES ($1, $2, $3, $4, $5, FALSE, '2099-01-01', 100)
+         RETURNING *`,
         [
           course_id,
           lecturerId,
           task.title,
           `${task.description}\n\n💡 მინიშნება: ${task.hint}`,
           task.difficulty,
-          student_id,
         ],
       );
-      drafts.push(r.rows[0]);
+      aiDrafts.push({ ...r.rows[0], source: "ai" }); // ✅ source tag
     }
+
+    // 6. ✅ არსებული 2 შაბლონი პირდაპირ DB-დან
+    const existing = await query(
+      `SELECT * FROM homeworks
+       WHERE course_id = $1
+         AND is_template = TRUE
+         AND difficulty = $2
+       ORDER BY RANDOM()
+       LIMIT 2`,
+      [course_id, difficulty],
+    );
+    const existingDrafts = existing.rows.map((r: any) => ({
+      ...r,
+      source: "existing", // ✅ source tag
+    }));
 
     res.status(201).json({
       prediction,
-      drafts,
-      message: `${drafts.length} დავალება გენერირდა Gemini-ით — ${difficulty}`,
+      drafts: [...aiDrafts, ...existingDrafts], // ✅ ორივე ერთად
+      message: `${aiDrafts.length} AI + ${existingDrafts.length} არსებული დავალება`,
     });
   } catch (err: any) {
     console.error("GENERATE_CATCHUP_ERROR:", err);
