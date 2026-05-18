@@ -3,15 +3,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
-  LayoutGrid,
   BookOpen,
   GraduationCap,
-  LogOut,
-  TrendingUp,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Star,
 } from "lucide-react";
 import Sidebar from "@/app/components/Sidebar";
 import PageHeader from "@/app/components/PageHeader/inedx";

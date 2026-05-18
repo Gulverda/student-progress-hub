@@ -92,14 +92,14 @@ export default function Sidebar({
 
         <NavItem
           icon={<Calendar size={20} />}
-          label="Schedule"
+          label="კალენდარი"
           active={is("/schedule")}
           onClick={() => go("/schedule")}
         />
 
         <NavItem
           icon={<ClipboardList size={20} />}
-          label="Homeworks"
+          label="დავალებები"
           active={is("/homeworks")}
           onClick={() => go("/homeworks")}
         />
@@ -108,13 +108,13 @@ export default function Sidebar({
           <>
             <NavItem
               icon={<GraduationCap size={20} />}
-              label="My Grades"
+              label="ჩემი ქულები"
               active={is("/grades/student")}
               onClick={() => go("/grades/student")}
             />
             <NavItem
               icon={<User size={20} />}
-              label="Profile"
+              label="პროფილი"
               active={is("/profile")}
               onClick={() => go("/profile")}
             />
@@ -128,19 +128,19 @@ export default function Sidebar({
             </div>
             <NavItem
               icon={<Star size={20} />}
-              label="Evaluate Students"
+              label="სტუდენტების შეფასება"
               active={is("/teacher")}
               onClick={() => go("/teacher")}
             />
             <NavItem
               icon={<BookOpen size={20} />}
-              label="Gradebook"
+              label="შეფასებების რვეული"
               active={is("/grades/teacher")}
               onClick={() => go("/grades/teacher")}
             />
             <NavItem
               icon={<Zap size={20} />}
-              label="Catch-up"
+              label="თასქების გენერატორი"
               active={is("/catchup")}
               onClick={() => go("/catchup")}
             />

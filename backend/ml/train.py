@@ -7,7 +7,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, mean_absolute_error
-from sklearn.preprocessing import LabelEncoder
 
 from db import load_student_data
 from features import build_features, get_feature_columns
@@ -29,26 +28,35 @@ def train():
     df = build_features(df_raw)
     features = get_feature_columns()
 
+    # ── debug: კლასების განაწილება ──
+    print("\n🔍 difficulty_label განაწილება:")
+    label_map = {0: "easy", 1: "medium", 2: "hard", 3: "complex"}
+    counts = df["difficulty_label"].value_counts().sort_index()
+    for k, v in counts.items():
+        print(f"   {label_map.get(int(k), k):>8}: {v} სტუდენტი")
+
     X = df[features].fillna(0)
 
     # ── Decision Tree (სირთულის კლასიფიკაცია) ────────────
     print("\n🌳 Decision Tree...")
-    y_class = df["difficulty_label"].fillna(1)  # default: medium
+    y_class = df["difficulty_label"].fillna(1)
 
     if len(X) >= 4:
         X_tr, X_te, y_tr, y_te = train_test_split(
             X, y_class, test_size=0.2, random_state=42
+            # stratify ამოღებულია — მცირე კლასები (1 მაგ.) ვერ იყოფა
         )
         dt = DecisionTreeClassifier(
-            max_depth=5,
-            min_samples_split=2,
+            max_depth=4,
+            min_samples_split=10,
+            min_samples_leaf=5,
+            class_weight="balanced",
             random_state=42,
         )
         dt.fit(X_tr, y_tr)
         acc = accuracy_score(y_te, dt.predict(X_te))
         print(f"   Accuracy: {acc:.0%}")
     else:
-        # მცირე dataset — ყველა მონაცემზე ვატრენინგებთ
         dt = DecisionTreeClassifier(max_depth=3, random_state=42)
         dt.fit(X, y_class)
         print("   (მცირე dataset — train/test split გამოტოვდა)")

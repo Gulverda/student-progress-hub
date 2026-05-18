@@ -1,4 +1,5 @@
 import os
+import importlib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -55,17 +56,16 @@ def course_students(course_id: int):
 @app.post("/retrain")
 def retrain():
     """
-    მოდელის ხელახლა დატრენინგება (ახალი მონაცემებით)
+    მოდელის ხელახლა დატრენინგება (ახალი მონაცემებით).
+
+    predict.py იყენებს lazy loading-ს (_load_models),
+    ამიტომ reload აღარ სჭირდება — შემდეგი predict call-ზე
+    ახალი pkl ფაილები ავტომატურად წაიკითხება.
     """
     try:
         import train
-        train.train()
-        
-        # მოდელების reload
-        import predict
-        import importlib
-        importlib.reload(predict)
-        
-        return {"status": "ok", "message": "მოდელი განახლდა"}
+        importlib.reload(train)   # train.py-ს ახლიდან ჩატვირთვა
+        train.train()             # ახალი pkl-ების გენერაცია
+        return {"status": "ok", "message": "მოდელი განახლდა ✅"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

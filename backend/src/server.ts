@@ -18,6 +18,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import chatRoutes from "./routes/chatRoutes"; // ← NEW
 import { initSocket } from "./socket"; // ← NEW
 import { ensureChatTables } from "./controllers/chatController"; // ← NEW
+import attendanceRoutes from "./routes/attendanceRoutes";
 import path from "path";
 import fs from "fs";
 
@@ -50,6 +51,7 @@ app.use("/api/schedule", scheduleRoutes);
 app.use("/api/homeworks", homeworkRoutes);
 app.use("/api/task-templates", taskTemplateRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/attendance", attendanceRoutes);
 app.use("/api/chat", chatRoutes); // ← NEW
 
 app.get("/", (req: Request, res: Response) => {

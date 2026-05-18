@@ -2,18 +2,34 @@ import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from db import load_student_data, get_connection
+from db import get_connection
 from features import build_features, get_feature_columns
 from psycopg2.extras import RealDictCursor
 
 MODELS_DIR = Path(__file__).parent / "models"
 
-# მოდელების ჩატვირთვა (ერთხელ — სერვერის გაშვებისას)
-dt_model = joblib.load(MODELS_DIR / "difficulty_tree.pkl")
-lr_model = joblib.load(MODELS_DIR / "score_regression.pkl")
-
 DIFFICULTY_MAP = {0: "easy", 1: "medium", 2: "hard", 3: "complex"}
 DIFFICULTY_LABELS = {v: k for k, v in DIFFICULTY_MAP.items()}
+
+
+def _load_models():
+    """
+    ყოველ call-ზე ახლიდან ტვირთავს pkl-ებს disk-იდან.
+    ასე retrain-ის შემდეგ ყოველთვის fresh მოდელი გამოიყენება.
+    """
+    dt_path = MODELS_DIR / "difficulty_tree.pkl"
+    lr_path = MODELS_DIR / "score_regression.pkl"
+
+    if not dt_path.exists() or not lr_path.exists():
+        raise FileNotFoundError(
+            "მოდელები ვერ მოიძებნა. გაუშვი: python train.py"
+        )
+
+    print(f"🔄 dt mtime: {dt_path.stat().st_mtime:.0f} | lr mtime: {lr_path.stat().st_mtime:.0f}")
+
+    dt_model = joblib.load(dt_path)
+    lr_model = joblib.load(lr_path)
+    return dt_model, lr_model
 
 
 def predict_student(student_id: int, course_id: int) -> dict:
@@ -23,7 +39,6 @@ def predict_student(student_id: int, course_id: int) -> dict:
     conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    # სტუდენტის მონაცემები
     cur.execute("""
         SELECT
             e.student_id,
@@ -92,6 +107,9 @@ def predict_student(student_id: int, course_id: int) -> dict:
     features = get_feature_columns()
     X = df[features].fillna(0)
 
+    # ← lazy load: ყოველ call-ზე disk-იდან იკითხება
+    dt_model, lr_model = _load_models()
+
     # პრედიქცია
     difficulty_num  = int(dt_model.predict(X)[0])
     predicted_score = float(lr_model.predict(X)[0])
@@ -127,13 +145,13 @@ def predict_student(student_id: int, course_id: int) -> dict:
 
         # პროფილი
         "profile": {
-            "avg_hw_score":       round(float(df["avg_hw_score"].iloc[0]), 1),
-            "submission_rate":    round(float(df["submission_rate"].iloc[0]) * 100, 1),
-            "avg_understanding":  round(float(df["avg_understanding"].iloc[0]), 2),
+            "avg_hw_score":        round(float(df["avg_hw_score"].iloc[0]), 1),
+            "submission_rate":     round(float(df["submission_rate"].iloc[0]) * 100, 1),
+            "avg_understanding":   round(float(df["avg_understanding"].iloc[0]), 2),
             "understanding_trend": int(df["understanding_trend"].iloc[0]),
-            "missed_homeworks":   int(df["missed_homeworks"].iloc[0]),
-            "eval_count":         int(df["eval_count"].iloc[0]),
-            "current_week":       week,
+            "missed_homeworks":    int(df["missed_homeworks"].iloc[0]),
+            "eval_count":          int(df["eval_count"].iloc[0]),
+            "current_week":        week,
         },
 
         "milestone": milestone,

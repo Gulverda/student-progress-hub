@@ -3,9 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
-  LayoutGrid,
-  Star,
-  LogOut,
   BookOpen,
   ChevronDown,
   Users,
@@ -21,6 +18,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/app/components/Sidebar";
 import PageHeader from "@/app/components/PageHeader/inedx";
+import AttendanceTab from "@/app/components/attendance";
 
 const WEEKS = Array.from({ length: 16 }, (_, i) => i + 1);
 
@@ -111,11 +109,9 @@ function computeRowTotals(
 ) {
   let obtained = 0;
   let possible = 0;
-
   WEEKS.forEach((w) => {
     if (w > currentWeek) return;
     if (w < weekFrom || w > weekTo) return;
-
     const max = weekMax[w] ?? 2;
     const localVal = localEdits?.[w];
     if (localVal !== undefined && localVal !== "") {
@@ -130,7 +126,6 @@ function computeRowTotals(
     if (score !== null) obtained += score;
     possible += max;
   });
-
   return { obtained, possible };
 }
 
@@ -146,7 +141,6 @@ function calcCurrentWeek(semesterStart: string): number {
 export default function GradebookPage() {
   const router = useRouter();
 
-  // ── state (ყველა hook return-მდე) ──
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
   const [courseId, setCourseId] = useState<number | null>(null);
@@ -172,8 +166,9 @@ export default function GradebookPage() {
     {},
   );
   const [editingSemStart, setEditingSemStart] = useState("");
-  const [weekFrom, setWeekFrom] = useState(1); // ← სწორ ადგილას
-  const [weekTo, setWeekTo] = useState(16); // ← სწორ ადგილას
+  const [weekFrom, setWeekFrom] = useState(1);
+  const [weekTo, setWeekTo] = useState(16);
+  const [activeTab, setActiveTab] = useState<"grades" | "attendance">("grades");
 
   // ── auth ──
   useEffect(() => {
@@ -200,7 +195,6 @@ export default function GradebookPage() {
         setSemesterStart(date);
         setEditingSemStart(date);
         if (date) setCurrentWeek(calcCurrentWeek(date));
-
         const scores = scoresRes.data.scores ?? DEFAULT_WEEK_MAX;
         const parsed: Record<number, number> = {};
         Object.entries(scores).forEach(([k, v]) => {
@@ -316,7 +310,6 @@ export default function GradebookPage() {
       cancelEdit();
       return;
     }
-
     setSaving(true);
     try {
       await Promise.all(
@@ -342,7 +335,6 @@ export default function GradebookPage() {
     }
   };
 
-  // ── stats (weekFrom/weekTo ფილტრით) ──
   const passCount = students.filter((s) => {
     const { obtained, possible } = computeRowTotals(
       s,
@@ -374,14 +366,10 @@ export default function GradebookPage() {
 
   if (!isAuthorized) return null;
 
-  const selectedCourse = courses.find((c) => c.id === courseId);
-
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
-      {/* ── Sidebar ── */}
       <Sidebar role="teacher" activePath="/grades/teacher" />
 
-      {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden">
         <PageHeader icon={BookOpen} title="ჟურნალი">
           {semesterStart && (
@@ -396,42 +384,9 @@ export default function GradebookPage() {
             <Settings size={14} /> პარამეტრები
           </button>
         </PageHeader>
-        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-4">
-            <BookOpen size={18} className="text-indigo-600" />
-            <span className="font-bold text-slate-800">Gradebook</span>
-            {selectedCourse && (
-              <>
-                <span className="text-slate-300">/</span>
-                <span className="text-slate-500 font-medium text-sm">
-                  {selectedCourse.title}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {semesterStart && (
-              <span className="bg-indigo-50 text-indigo-700 text-xs font-black px-4 py-2 rounded-full border border-indigo-100">
-                კვირა {currentWeek} / 16
-              </span>
-            )}
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
-            >
-              <Settings size={14} /> პარამეტრები
-            </button>
-            <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-              <img
-                src="https://ui-avatars.com/api/?name=Teacher&background=random"
-                alt=""
-              />
-            </div>
-          </div>
-        </header> */}
 
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
-          {/* Controls */}
+          {/* ── Controls + Tab toggle ── */}
           <div className="flex flex-wrap gap-4 items-end">
             {/* კურსი */}
             <div className="space-y-1.5">
@@ -460,36 +415,62 @@ export default function GradebookPage() {
               </div>
             </div>
 
-            {/* კვირების დიაპაზონი — ცალკე div, კურსის გარეთ */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                კვირების დიაპაზონი
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={weekFrom}
-                  onChange={(e) => setWeekFrom(Number(e.target.value))}
-                  className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
-                >
-                  {WEEKS.filter((w) => w <= weekTo).map((w) => (
-                    <option key={w} value={w}>
-                      კვ. {w}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-slate-400 font-bold text-sm">—</span>
-                <select
-                  value={weekTo}
-                  onChange={(e) => setWeekTo(Number(e.target.value))}
-                  className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
-                >
-                  {WEEKS.filter((w) => w >= weekFrom).map((w) => (
-                    <option key={w} value={w}>
-                      კვ. {w}
-                    </option>
-                  ))}
-                </select>
+            {/* კვირების დიაპაზონი — მხოლოდ grades tab-ზე */}
+            {activeTab === "grades" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  კვირების დიაპაზონი
+                </label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={weekFrom}
+                    onChange={(e) => setWeekFrom(Number(e.target.value))}
+                    className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+                  >
+                    {WEEKS.filter((w) => w <= weekTo).map((w) => (
+                      <option key={w} value={w}>
+                        კვ. {w}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-slate-400 font-bold text-sm">—</span>
+                  <select
+                    value={weekTo}
+                    onChange={(e) => setWeekTo(Number(e.target.value))}
+                    className="appearance-none bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+                  >
+                    {WEEKS.filter((w) => w >= weekFrom).map((w) => (
+                      <option key={w} value={w}>
+                        კვ. {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+            )}
+
+            {/* Tab toggle */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl">
+              <button
+                onClick={() => setActiveTab("grades")}
+                className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                  activeTab === "grades"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                📊 ქულები
+              </button>
+              <button
+                onClick={() => setActiveTab("attendance")}
+                className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                  activeTab === "attendance"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                📅 დასწრება
+              </button>
             </div>
 
             <div className="ml-auto">
@@ -499,290 +480,300 @@ export default function GradebookPage() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <StatCard
-              icon={<Users size={18} />}
-              label="სტუდენტები"
-              value={students.length}
-              sub="enrolled"
-            />
-            <StatCard
-              icon={<TrendingUp size={18} />}
-              label="საშუალო %"
-              value={`${avgPct}%`}
-              sub={calcGrade(avgPct).letter}
-              color={calcGrade(avgPct).color}
-            />
-            <StatCard
-              icon={<Award size={18} />}
-              label="Pass Rate"
-              value={`${students.length ? Math.round((passCount / students.length) * 100) : 0}%`}
-              sub={`${passCount} / ${students.length}`}
-            />
-          </div>
-
-          {/* Grade Table */}
-          {loading ? (
-            <div className="flex items-center justify-center py-24 text-slate-400 gap-3">
-              <Loader2 className="animate-spin" size={20} /> ქულები იტვირთება...
-            </div>
+          {/* ── Tab content ── */}
+          {activeTab === "attendance" ? (
+            // ── Attendance tab ──
+            courseId ? (
+              <AttendanceTab courseId={courseId} currentWeek={currentWeek} />
+            ) : (
+              <div className="flex items-center justify-center py-24 text-slate-400">
+                კურსი არ არის არჩეული
+              </div>
+            )
           ) : (
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex gap-2 flex-wrap px-8 py-4 border-b border-slate-100 bg-slate-50/60">
-                {[
-                  "+A/A/-A",
-                  "91–100",
-                  "+B/B/-B",
-                  "81–90",
-                  "+C/C/-C",
-                  "71–80",
-                  "+D/D/-D",
-                  "61–70",
-                  "+E/E/-E",
-                  "51–60",
-                  "F",
-                  "≤50",
-                ].map((t, i) => (
-                  <span
-                    key={i}
-                    className="text-[10px] font-bold text-slate-500 bg-white border border-slate-100 rounded-full px-2.5 py-0.5"
-                  >
-                    {t}
-                  </span>
-                ))}
+            // ── Grades tab ──
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <StatCard
+                  icon={<Users size={18} />}
+                  label="სტუდენტები"
+                  value={students.length}
+                  sub="enrolled"
+                />
+                <StatCard
+                  icon={<TrendingUp size={18} />}
+                  label="საშუალო %"
+                  value={`${avgPct}%`}
+                  sub={calcGrade(avgPct).letter}
+                  color={calcGrade(avgPct).color}
+                />
+                <StatCard
+                  icon={<Award size={18} />}
+                  label="Pass Rate"
+                  value={`${students.length ? Math.round((passCount / students.length) * 100) : 0}%`}
+                  sub={`${passCount} / ${students.length}`}
+                />
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-[#101D2D] text-white">
-                      <th className="sticky left-0 z-10 bg-[#101D2D] text-left p-4 pl-8 font-black text-[11px] uppercase tracking-widest w-52">
-                        სტუდენტი
-                      </th>
-                      {WEEKS.map((w) => (
-                        <th
-                          key={w}
-                          className={`p-3 font-black text-[10px] tracking-widest text-center min-w-[3.5rem] ${
-                            w === 8
-                              ? "bg-indigo-900"
-                              : w === 16
-                                ? "bg-purple-900"
-                                : w === currentWeek
-                                  ? "bg-slate-600"
-                                  : ""
-                          } ${w < weekFrom || w > weekTo ? "opacity-30" : ""}`}
-                        >
-                          {w === 8 ? "MID" : w === 16 ? "FIN" : w}
-                          {w === currentWeek && w !== 8 && w !== 16 && (
-                            <div className="text-[8px] text-indigo-300 font-bold">
-                              ●
-                            </div>
-                          )}
-                        </th>
-                      ))}
-                      <th className="p-3 font-black text-[10px] tracking-widest text-center">
-                        სულ
-                      </th>
-                      <th className="p-3 font-black text-[10px] tracking-widest text-center">
-                        მაქს
-                      </th>
-                      <th className="p-3 font-black text-[10px] tracking-widest text-center">
-                        %
-                      </th>
-                      <th className="p-3 font-black text-[10px] tracking-widest text-center">
-                        ქულა
-                      </th>
-                      <th className="p-3 pr-8 font-black text-[10px] tracking-widest text-center">
-                        მოქმედება
-                      </th>
-                    </tr>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <td className="sticky left-0 z-10 bg-slate-50 px-8 py-2 text-[10px] text-slate-400 font-bold">
-                        მაქს. / კვირა
-                      </td>
-                      {WEEKS.map((w) => (
-                        <td
-                          key={w}
-                          className={`text-center text-[10px] font-bold ${
-                            w < weekFrom || w > weekTo
-                              ? "opacity-30"
-                              : w > currentWeek
-                                ? "text-slate-200"
-                                : "text-slate-400"
-                          }`}
-                        >
-                          {weekMax[w] != null && weekMax[w] > 0
-                            ? weekMax[w]
-                            : "–"}
-                        </td>
-                      ))}
-                      <td colSpan={5} />
-                    </tr>
-                  </thead>
+              {/* Grade Table */}
+              {loading ? (
+                <div className="flex items-center justify-center py-24 text-slate-400 gap-3">
+                  <Loader2 className="animate-spin" size={20} /> ქულები
+                  იტვირთება...
+                </div>
+              ) : (
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="flex gap-2 flex-wrap px-8 py-4 border-b border-slate-100 bg-slate-50/60">
+                    {[
+                      "+A/A/-A",
+                      "91–100",
+                      "+B/B/-B",
+                      "81–90",
+                      "+C/C/-C",
+                      "71–80",
+                      "+D/D/-D",
+                      "61–70",
+                      "+E/E/-E",
+                      "51–60",
+                      "F",
+                      "≤50",
+                    ].map((t, i) => (
+                      <span
+                        key={i}
+                        className="text-[10px] font-bold text-slate-500 bg-white border border-slate-100 rounded-full px-2.5 py-0.5"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
 
-                  <tbody className="divide-y divide-slate-50">
-                    {students.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={22}
-                          className="text-center py-16 text-slate-400 font-medium"
-                        >
-                          ამ კურსზე სტუდენტები ჯერ არ არიან
-                        </td>
-                      </tr>
-                    ) : (
-                      students.map((student, idx) => {
-                        const isEditing = editingRow === student.student_id;
-                        const rowEdits = localEdits[student.student_id] ?? {};
-                        // ← weekFrom/weekTo გადაეცემა
-                        const { obtained, possible } = computeRowTotals(
-                          student,
-                          isEditing ? rowEdits : undefined,
-                          weekMax,
-                          currentWeek,
-                          weekFrom,
-                          weekTo,
-                        );
-                        const pct =
-                          possible > 0
-                            ? Math.round((obtained / possible) * 100)
-                            : 0;
-                        const grade = calcGrade(pct);
-
-                        return (
-                          <tr
-                            key={student.student_id}
-                            className={`transition-colors ${
-                              isEditing
-                                ? "bg-indigo-50/60 ring-1 ring-inset ring-indigo-200"
-                                : idx % 2 === 0
-                                  ? "bg-white hover:bg-slate-50/60"
-                                  : "bg-slate-50/30 hover:bg-slate-50/60"
-                            }`}
-                          >
-                            <td className="sticky left-0 z-10 bg-inherit px-8 py-3 font-bold text-slate-700 whitespace-nowrap">
-                              <div className="flex items-center gap-3">
-                                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-black shrink-0">
-                                  {student.full_name?.charAt(0)}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-[#101D2D] text-white">
+                          <th className="sticky left-0 z-10 bg-[#101D2D] text-left p-4 pl-8 font-black text-[11px] uppercase tracking-widest w-52">
+                            სტუდენტი
+                          </th>
+                          {WEEKS.map((w) => (
+                            <th
+                              key={w}
+                              className={`p-3 font-black text-[10px] tracking-widest text-center min-w-[3.5rem] ${
+                                w === 8
+                                  ? "bg-indigo-900"
+                                  : w === 16
+                                    ? "bg-purple-900"
+                                    : w === currentWeek
+                                      ? "bg-slate-600"
+                                      : ""
+                              } ${w < weekFrom || w > weekTo ? "opacity-30" : ""}`}
+                            >
+                              {w === 8 ? "MID" : w === 16 ? "FIN" : w}
+                              {w === currentWeek && w !== 8 && w !== 16 && (
+                                <div className="text-[8px] text-indigo-300 font-bold">
+                                  ●
                                 </div>
-                                <span className="text-sm">
-                                  {student.full_name}
-                                </span>
-                              </div>
-                            </td>
-
-                            {WEEKS.map((w) => {
-                              const serverScore = getWeekScore(student, w);
-                              const isFuture = w > currentWeek;
-                              const isFiltered = w < weekFrom || w > weekTo;
-                              const displayValue = isEditing
-                                ? (rowEdits[w] ??
-                                  (serverScore !== null
-                                    ? String(serverScore)
-                                    : ""))
-                                : serverScore !== null
-                                  ? String(serverScore)
-                                  : "";
-
-                              return (
-                                <td
-                                  key={w}
-                                  className={`p-1 text-center ${(isFuture || isFiltered) && !isEditing ? "opacity-30" : ""} ${(w === 8 || w === 16) && !isEditing ? "bg-slate-50/80" : ""}`}
-                                >
-                                  {isEditing ? (
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={weekMax[w] ?? 0}
-                                      step={0.5}
-                                      value={displayValue}
-                                      onChange={(e) =>
-                                        handleChange(
-                                          student.student_id,
-                                          w,
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="w-12 text-center bg-white rounded-xl py-1.5 text-sm font-bold outline-none border border-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 shadow-sm"
-                                    />
-                                  ) : (
-                                    <div
-                                      className={`w-12 mx-auto text-center rounded-xl py-1.5 text-sm font-bold border ${
-                                        displayValue !== ""
-                                          ? "border-slate-200 bg-slate-50 text-slate-800"
-                                          : "border-dashed border-slate-200 text-slate-300"
-                                      }`}
-                                    >
-                                      {displayValue !== "" ? displayValue : "–"}
-                                    </div>
-                                  )}
-                                </td>
-                              );
-                            })}
-
-                            <td className="px-3 text-center font-bold text-slate-700 tabular-nums">
-                              {obtained.toFixed(1)}
-                            </td>
-                            <td className="px-3 text-center text-slate-400 text-xs tabular-nums">
-                              {possible.toFixed(1)}
-                            </td>
-                            <td className="px-3 text-center font-bold tabular-nums">
-                              {pct}%
-                            </td>
-                            <td className="px-3 text-center">
-                              <span
-                                className={`inline-block px-3 py-1 rounded-full text-[11px] font-black ${grade.bg} ${grade.color}`}
-                              >
-                                {grade.letter}
-                              </span>
-                            </td>
-                            <td className="px-3 pr-8 text-center">
-                              {isEditing ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() =>
-                                      handleSave(student.student_id)
-                                    }
-                                    disabled={saving}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors disabled:opacity-60 shadow-sm"
-                                  >
-                                    {saving ? (
-                                      <Loader2
-                                        size={12}
-                                        className="animate-spin"
-                                      />
-                                    ) : (
-                                      <Save size={12} />
-                                    )}
-                                    შენახვა
-                                  </button>
-                                  <button
-                                    onClick={cancelEdit}
-                                    disabled={saving}
-                                    className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold hover:bg-slate-200 transition-colors disabled:opacity-60"
-                                  >
-                                    <X size={12} /> გაუქმება
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => startEdit(student.student_id)}
-                                  disabled={editingRow !== null}
-                                  className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  <Pencil size={12} /> რედაქტირება
-                                </button>
                               )}
+                            </th>
+                          ))}
+                          <th className="p-3 font-black text-[10px] tracking-widest text-center">
+                            სულ
+                          </th>
+                          <th className="p-3 font-black text-[10px] tracking-widest text-center">
+                            მაქს
+                          </th>
+                          <th className="p-3 font-black text-[10px] tracking-widest text-center">
+                            %
+                          </th>
+                          <th className="p-3 font-black text-[10px] tracking-widest text-center">
+                            ქულა
+                          </th>
+                          <th className="p-3 pr-8 font-black text-[10px] tracking-widest text-center">
+                            მოქმედება
+                          </th>
+                        </tr>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <td className="sticky left-0 z-10 bg-slate-50 px-8 py-2 text-[10px] text-slate-400 font-bold">
+                            მაქს. / კვირა
+                          </td>
+                          {WEEKS.map((w) => (
+                            <td
+                              key={w}
+                              className={`text-center text-[10px] font-bold ${w < weekFrom || w > weekTo ? "opacity-30" : w > currentWeek ? "text-slate-200" : "text-slate-400"}`}
+                            >
+                              {weekMax[w] != null && weekMax[w] > 0
+                                ? weekMax[w]
+                                : "–"}
+                            </td>
+                          ))}
+                          <td colSpan={5} />
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-slate-50">
+                        {students.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={22}
+                              className="text-center py-16 text-slate-400 font-medium"
+                            >
+                              ამ კურსზე სტუდენტები ჯერ არ არიან
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        ) : (
+                          students.map((student, idx) => {
+                            const isEditing = editingRow === student.student_id;
+                            const rowEdits =
+                              localEdits[student.student_id] ?? {};
+                            const { obtained, possible } = computeRowTotals(
+                              student,
+                              isEditing ? rowEdits : undefined,
+                              weekMax,
+                              currentWeek,
+                              weekFrom,
+                              weekTo,
+                            );
+                            const pct =
+                              possible > 0
+                                ? Math.round((obtained / possible) * 100)
+                                : 0;
+                            const grade = calcGrade(pct);
+
+                            return (
+                              <tr
+                                key={student.student_id}
+                                className={`transition-colors ${
+                                  isEditing
+                                    ? "bg-indigo-50/60 ring-1 ring-inset ring-indigo-200"
+                                    : idx % 2 === 0
+                                      ? "bg-white hover:bg-slate-50/60"
+                                      : "bg-slate-50/30 hover:bg-slate-50/60"
+                                }`}
+                              >
+                                <td className="sticky left-0 z-10 bg-inherit px-8 py-3 font-bold text-slate-700 whitespace-nowrap">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-black shrink-0">
+                                      {student.full_name?.charAt(0)}
+                                    </div>
+                                    <span className="text-sm">
+                                      {student.full_name}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {WEEKS.map((w) => {
+                                  const serverScore = getWeekScore(student, w);
+                                  const isFuture = w > currentWeek;
+                                  const isFiltered = w < weekFrom || w > weekTo;
+                                  const displayValue = isEditing
+                                    ? (rowEdits[w] ??
+                                      (serverScore !== null
+                                        ? String(serverScore)
+                                        : ""))
+                                    : serverScore !== null
+                                      ? String(serverScore)
+                                      : "";
+
+                                  return (
+                                    <td
+                                      key={w}
+                                      className={`p-1 text-center ${(isFuture || isFiltered) && !isEditing ? "opacity-30" : ""} ${(w === 8 || w === 16) && !isEditing ? "bg-slate-50/80" : ""}`}
+                                    >
+                                      {isEditing ? (
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={weekMax[w] ?? 0}
+                                          step={0.5}
+                                          value={displayValue}
+                                          onChange={(e) =>
+                                            handleChange(
+                                              student.student_id,
+                                              w,
+                                              e.target.value,
+                                            )
+                                          }
+                                          className="w-12 text-center bg-white rounded-xl py-1.5 text-sm font-bold outline-none border border-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 shadow-sm"
+                                        />
+                                      ) : (
+                                        <div
+                                          className={`w-12 mx-auto text-center rounded-xl py-1.5 text-sm font-bold border ${displayValue !== "" ? "border-slate-200 bg-slate-50 text-slate-800" : "border-dashed border-slate-200 text-slate-300"}`}
+                                        >
+                                          {displayValue !== ""
+                                            ? displayValue
+                                            : "–"}
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+
+                                <td className="px-3 text-center font-bold text-slate-700 tabular-nums">
+                                  {obtained.toFixed(1)}
+                                </td>
+                                <td className="px-3 text-center text-slate-400 text-xs tabular-nums">
+                                  {possible.toFixed(1)}
+                                </td>
+                                <td className="px-3 text-center font-bold tabular-nums">
+                                  {pct}%
+                                </td>
+                                <td className="px-3 text-center">
+                                  <span
+                                    className={`inline-block px-3 py-1 rounded-full text-[11px] font-black ${grade.bg} ${grade.color}`}
+                                  >
+                                    {grade.letter}
+                                  </span>
+                                </td>
+                                <td className="px-3 pr-8 text-center">
+                                  {isEditing ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        onClick={() =>
+                                          handleSave(student.student_id)
+                                        }
+                                        disabled={saving}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors disabled:opacity-60 shadow-sm"
+                                      >
+                                        {saving ? (
+                                          <Loader2
+                                            size={12}
+                                            className="animate-spin"
+                                          />
+                                        ) : (
+                                          <Save size={12} />
+                                        )}
+                                        შენახვა
+                                      </button>
+                                      <button
+                                        onClick={cancelEdit}
+                                        disabled={saving}
+                                        className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold hover:bg-slate-200 transition-colors disabled:opacity-60"
+                                      >
+                                        <X size={12} /> გაუქმება
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() =>
+                                        startEdit(student.student_id)
+                                      }
+                                      disabled={editingRow !== null}
+                                      className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      <Pencil size={12} /> რედაქტირება
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
@@ -838,7 +829,6 @@ export default function GradebookPage() {
                       <input
                         type="number"
                         min={0}
-                        max={weekMax[w] ?? 0}
                         value={editingWeekMax[w] ?? ""}
                         onChange={(e) =>
                           setEditingWeekMax((prev) => ({
@@ -852,14 +842,7 @@ export default function GradebookPage() {
                   ))}
                 </div>
                 <p
-                  className={`text-xs font-bold ${
-                    Object.values(editingWeekMax).reduce(
-                      (a, v) => a + (parseFloat(v) || 0),
-                      0,
-                    ) === 100
-                      ? "text-emerald-600"
-                      : "text-amber-600"
-                  }`}
+                  className={`text-xs font-bold ${Object.values(editingWeekMax).reduce((a, v) => a + (parseFloat(v) || 0), 0) === 100 ? "text-emerald-600" : "text-amber-600"}`}
                 >
                   ჯამი:{" "}
                   {Object.values(editingWeekMax).reduce(
@@ -902,24 +885,6 @@ export default function GradebookPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function NavItem({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: any;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      className={`flex items-center gap-3 w-full p-3.5 rounded-2xl text-sm font-bold transition-all ${active ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" : "hover:bg-slate-800 hover:text-white"}`}
-    >
-      {icon} {label}
-    </button>
   );
 }
 
