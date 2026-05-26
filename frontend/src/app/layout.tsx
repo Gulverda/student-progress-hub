@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Utopia | Student Hub",
+  title: "EduStep | Student Hub",
   description: "აკადემიური მართვის თანამედროვე პლატფორმა",
 };
 

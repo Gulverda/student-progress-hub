@@ -494,7 +494,7 @@ export default function GradebookPage() {
             // ── Grades tab ──
             <>
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <StatCard
                   icon={<Users size={18} />}
                   label="სტუდენტები"
@@ -647,7 +647,7 @@ export default function GradebookPage() {
                                     ? "bg-indigo-50/60 ring-1 ring-inset ring-indigo-200"
                                     : idx % 2 === 0
                                       ? "bg-white hover:bg-slate-50/60"
-                                      : "bg-slate-50/30 hover:bg-slate-50/60"
+                                      : "bg-gray-100 hover:bg-slate-50/60"
                                 }`}
                               >
                                 <td className="sticky left-0 z-10 bg-inherit px-8 py-3 font-bold text-slate-700 whitespace-nowrap">
@@ -805,7 +805,7 @@ export default function GradebookPage() {
                 />
                 {editingSemStart && (
                   <p className="text-xs text-indigo-600 font-bold">
-                    → მიმდინარე კვირა: {calcCurrentWeek(editingSemStart)}
+                    მიმდინარე კვირა: {calcCurrentWeek(editingSemStart)}
                   </p>
                 )}
               </div>

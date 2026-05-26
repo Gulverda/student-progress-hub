@@ -6,7 +6,6 @@ import {
   BookMarked,
   Plus,
   Trash2,
-  Search,
   X,
   Layers,
   ChevronRight,
@@ -192,10 +191,10 @@ export default function TaskLibraryPage() {
           {/* Search + filter */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search
+              {/* <Search
                 size={15}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-              />
+              /> */}
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

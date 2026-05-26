@@ -8,7 +8,7 @@ from predict import predict_student, get_course_students
 load_dotenv()
 
 app = FastAPI(
-    title="Utopia ML API",
+    title="EduStep ML API",
     description="Adaptive Catch-up System — ML სერვისი",
     version="1.0.0",
 )
@@ -23,7 +23,7 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Utopia ML API"}
+    return {"status": "ok", "service": "EduStep ML API"}
 
 
 @app.get("/predict/{course_id}/{student_id}")

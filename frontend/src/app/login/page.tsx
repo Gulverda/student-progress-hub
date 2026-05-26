@@ -44,7 +44,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-[#101D2D] rounded-xl flex items-center justify-center shadow-xl shadow-slate-200">
               <div className="w-5 h-5 bg-white rotate-45"></div>
             </div>
-            UTOPIA
+            EduStep
           </div>
           <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-4">
             Educational Platform

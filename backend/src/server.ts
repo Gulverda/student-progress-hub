@@ -55,7 +55,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/chat", chatRoutes); // ← NEW
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("Utopia API is Running! 🚀");
+  res.send("EduStep API is Running! 🚀");
 });
 
 // ── Init Socket.io ───────────────────────────────────────────

@@ -78,7 +78,7 @@ export default function AdminPanel() {
   }, [router, activeTab]);
 
   const generateTempPassword = () => {
-    const generatedPass = `UTOPIA-${new Date().getFullYear().toString().slice(-2)}${Math.floor(100000 + Math.random() * 900000)}`;
+    const generatedPass = `EduStep-${new Date().getFullYear().toString().slice(-2)}${Math.floor(100000 + Math.random() * 900000)}`;
     setFormData({ ...formData, password: generatedPass });
   };
 
@@ -156,7 +156,7 @@ export default function AdminPanel() {
             <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
               <div className="w-4 h-4 bg-[#101D2D] rotate-45"></div>
             </div>
-            UTOPIA{" "}
+            EduStep
             <span className="text-[10px] bg-indigo-600 px-1.5 py-0.5 rounded ml-1 not-italic font-bold">
               ADMIN
             </span>

@@ -164,7 +164,7 @@ export default function PageHeader({
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mr-10 md:mr-0">
         {children}
 
         {/* Bell */}

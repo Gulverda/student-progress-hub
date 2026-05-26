@@ -222,7 +222,7 @@ export default function StudentGradesPage() {
           </div>
         </header> */}
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 md:p-8 md:space-y-8">
           <div className="flex justify-between items-end">
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">

@@ -10,7 +10,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         df["submitted_count"] / df["total_homeworks"].replace(0, 1)
     ).clip(0, 1)
 
-    # 2. გაგების ტრენდი
+    # 2. გაგების ტრენდი (–1, 0, +1)
     df["understanding_trend"] = np.select(
         [
             df["last_understanding"] > df["first_understanding"],
@@ -23,38 +23,51 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     # 3. კრიტიკული კვირა
     df["is_critical_week"] = df["current_week"].isin([7, 15]).astype(int)
 
-    # 4. შუალედურის სიახლოვე
+    # 4. milestone სიახლოვე 0..1 (რაც ახლოს, მით მაღალი)
     df["days_to_milestone"] = df["current_week"].apply(
         lambda w: min(abs(w - 8), abs(w - 16))
     )
+    df["milestone_proximity"] = (1 - df["days_to_milestone"] / 8).clip(0, 1)
 
-    # 5. რისკის სქორი (predict-ში risk_level-ისთვის გამოიყენება)
+    # 5. engagement — submission × understanding კომბო
+    df["engagement_score"] = (
+        df["submission_rate"] * df["avg_understanding"].clip(1, 5) / 5
+    ).clip(0, 1)
+
+    # 6. missed_rate normalized
+    df["missed_rate"] = (
+        df["missed_homeworks"] / df["total_homeworks"].replace(0, 1)
+    ).clip(0, 1)
+
+    # 7. რისკის სქორი 0–100
     df["risk_score"] = (
-        (1 - df["submission_rate"]) * 40
-        + (5 - df["avg_understanding"]) * 10
-        + (df["missed_homeworks"] * 3).clip(0, 30)
+        (1 - df["avg_hw_score"] / 100) * 60        # ← მთავარი სიგნალი (50%)
+        + (1 - df["submission_rate"]) * 10          # დავალებების გამოტოვება
+        + (5 - df["avg_understanding"].clip(1, 5)) / 4 * 20  # გაგების დონე
+        + df["missed_rate"] * 5                     # გაცდენილი / სულ
+        + (df["understanding_trend"] == -1).astype(int) * 5  # კლებადი ტრენდი
     ).clip(0, 100)
 
-    # 6. difficulty_label — რეალური hw ქულებით, არა risk_score-ით
-    # avg_hw_score: 0–49 → complex(3), 50–64 → hard(2), 65–79 → medium(1), 80–100 → easy(0)
-   # ნაცვლად avg_hw_score-ზე დაფუძნებული bins-ისა:
+    # 8. difficulty_label — avg_hw_score-ზე დაფუძნებული
+    #    80–100 → easy(0), 65–79 → medium(1), 50–64 → hard(2), 0–49 → complex(3)
     df["difficulty_label"] = pd.cut(
-        df["risk_score"],           # ← risk_score იყენებს submission + understanding + missed
-        bins=[-1, 25, 50, 75, 101],
-        labels=[0, 1, 2, 3],       # easy=0, medium=1, hard=2, complex=3
+        df["avg_hw_score"],
+        bins=[-1, 49, 64, 79, 101],
+        labels=[0, 1, 2, 3],  # 0–49 = easy(0), 80–100 = complex(3)
     ).astype(float).fillna(1)
 
     return df
 
 
 def get_feature_columns() -> list:
-    """ML-ში გამოსაყენებელი feature სვეტები"""
     return [
-        "submission_rate",
-        "avg_understanding",
-        "understanding_trend",
-        "is_critical_week",
-        "days_to_milestone",
-        "eval_count",
-        "missed_homeworks",
+        "submission_rate",      # დავალებების ჩაბარების პროცენტი
+        "avg_understanding",    # გაგების საშუალო დონე (1–5)
+        "understanding_trend",  # ტრენდი: –1, 0, +1
+        "is_critical_week",     # კვირა 7 ან 15
+        "milestone_proximity",  # milestone-სთან სიახლოვე 0..1
+        "eval_count",           # შეფასებების რაოდენობა
+        "missed_homeworks",     # გაცდენილი დავალებები (absolute)
+        "missed_rate",          # გაცდენილი / სულ (normalized)
+        "engagement_score",     # submission × understanding კომბო
     ]

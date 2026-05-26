@@ -140,8 +140,8 @@ export default function UtopiaDashboard() {
 
       {/* MAIN */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-          <div className="relative w-96">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-start md:justify-end px-8 shrink-0">
+          {/* <div className="relative w-96">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               size={18}
@@ -151,7 +151,7 @@ export default function UtopiaDashboard() {
               placeholder="Search anything..."
               className="w-full bg-slate-100 border-none rounded-lg py-2 pl-10 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
-          </div>
+          </div> */}
           <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white overflow-hidden shadow-sm">
             <img
               src={`https://ui-avatars.com/api/?name=${user?.full_name || "User"}&background=random`}
@@ -160,7 +160,7 @@ export default function UtopiaDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-10">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 md:p-8 md:space-y-10">
           <div className="flex justify-between items-end">
             <h1 className="text-2xl font-bold">
               Welcome, {user?.full_name?.split(" ")[0]}!

@@ -183,7 +183,7 @@ export default function AttendanceTab({ courseId, currentWeek }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+      <div className="flex items-center flex-wrap md:flex-nowrap gap-4 text-xs font-bold text-slate-500">
         <span className="flex items-center gap-1.5">
           <span className="w-5 h-5 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center">
             <CheckCircle2 size={12} className="text-emerald-600" />
@@ -266,7 +266,7 @@ export default function AttendanceTab({ courseId, currentWeek }: Props) {
                       className={
                         idx % 2 === 0
                           ? "bg-white hover:bg-slate-50/60"
-                          : "bg-slate-50/30 hover:bg-slate-50/60"
+                          : "bg-gray-100 hover:bg-slate-50/60"
                       }
                     >
                       <td className="sticky left-0 z-10 bg-inherit px-8 py-3 font-bold text-slate-700 whitespace-nowrap">

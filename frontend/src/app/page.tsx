@@ -26,7 +26,7 @@ export default function HomePage() {
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
         <p className="text-sm font-black uppercase tracking-widest text-slate-400">
-          Utopia Hub
+          EduStep Hub
         </p>
       </div>
     </div>

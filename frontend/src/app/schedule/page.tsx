@@ -28,7 +28,6 @@ const DAYS_FULL = [
   "პარასკევი",
   "შაბათი",
 ];
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 08:00 – 20:00
 
 const COLOR_OPTIONS = [
   {
@@ -79,8 +78,8 @@ interface ScheduleEntry {
   id: number;
   course_id: number;
   course_title: string;
-  day_of_week: number; // 0=Mon … 5=Sat
-  start_time: string; // "HH:MM"
+  day_of_week: number;
+  start_time: string;
   end_time: string;
   room: string;
   lecturer_name: string;
@@ -108,7 +107,11 @@ export default function SchedulePage() {
     type: "ok" | "err";
     msg: string;
   } | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0); // future: week navigation
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Mobile: which day tab is selected
+  const todayIndex = new Date().getDay() - 1; // 0=Mon, -1=Sun → clamp
+  const [activeDay, setActiveDay] = useState(Math.max(0, todayIndex));
 
   const [form, setForm] = useState<NewEntry>({
     course_id: "",
@@ -133,7 +136,6 @@ export default function SchedulePage() {
       try {
         const [schedRes] = await Promise.all([api.get("/schedule")]);
         setEntries(schedRes.data);
-
         if (u.role === "teacher" || u.role === "admin") {
           const endpoint =
             u.role === "admin" ? "/courses" : "/courses/lecturer-courses";
@@ -186,7 +188,6 @@ export default function SchedulePage() {
     }
   };
 
-  // Group entries by day
   const byDay: Record<number, ScheduleEntry[]> = {};
   for (let d = 0; d < 6; d++) byDay[d] = [];
   entries.forEach((e) => {
@@ -196,14 +197,58 @@ export default function SchedulePage() {
     arr.sort((a, b) => a.start_time.localeCompare(b.start_time)),
   );
 
-  const todayIndex = new Date().getDay() - 1; // 0=Mon
+  // Shared entry card
+  const EntryCard = ({ entry }: { entry: ScheduleEntry }) => {
+    const col = COLOR_OPTIONS[entry.color_index ?? 0] ?? COLOR_OPTIONS[0];
+    return (
+      <div
+        className={`rounded-[1.5rem] border p-4 transition-all group relative ${col.bg} ${col.border}`}
+      >
+        {canEdit && (
+          <button
+            onClick={() => handleDelete(entry.id)}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-white/60"
+          >
+            <Trash2 size={12} className={col.text} />
+          </button>
+        )}
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
+          <span
+            className={`text-[9px] font-black uppercase tracking-widest ${col.text} opacity-70`}
+          >
+            {entry.start_time} – {entry.end_time}
+          </span>
+        </div>
+        <p className={`font-black text-xs leading-tight mb-2 ${col.text}`}>
+          {entry.course_title}
+        </p>
+        {entry.room && (
+          <div className={`flex items-center gap-1 ${col.text} opacity-60`}>
+            <MapPin size={10} />
+            <span className="text-[9px] font-bold">{entry.room}</span>
+          </div>
+        )}
+        {entry.lecturer_name && (
+          <div
+            className={`flex items-center gap-1 mt-1 ${col.text} opacity-60`}
+          >
+            <BookOpen size={10} />
+            <span className="text-[9px] font-bold truncate">
+              {entry.lecturer_name}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       <Sidebar role={user?.role ?? "student"} activePath="/schedule" />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+      {/* pt-16 on mobile to clear the hamburger button from Sidebar */}
+      <main className="flex-1 flex flex-col overflow-hidden md:pt-0">
         <PageHeader icon={Calendar} title="განრიგი">
           {canEdit && (
             <button
@@ -214,41 +259,18 @@ export default function SchedulePage() {
             </button>
           )}
         </PageHeader>
-        {/* <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-3">
-            <Calendar size={18} className="text-indigo-600" />
-            <span className="font-bold text-slate-800">განრიგი</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {canEdit && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
-              >
-                <Plus size={14} /> გაკვეთილის დამატება
-              </button>
-            )}
-            <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-              <img
-                src={`https://ui-avatars.com/api/?name=${user?.full_name || "U"}&background=random`}
-                alt=""
-              />
-            </div>
-          </div>
-        </header> */}
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-6">
-          {/* Title row */}
-          <div className="flex items-end justify-between">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-6">
+          {/* Title + week nav */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
                 კვირის განრიგი
               </h1>
-              <p className="text-slate-400 font-medium mt-1">
+              <p className="text-slate-400 font-medium mt-1 text-sm">
                 2025–2026 · საგაზაფხულო სემესტრი
               </p>
             </div>
-            {/* Week nav (UI-only for now) */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setWeekOffset((w) => w - 1)}
@@ -256,7 +278,7 @@ export default function SchedulePage() {
               >
                 <ChevronLeft size={16} className="text-slate-500" />
               </button>
-              <span className="text-xs font-black text-slate-500 bg-slate-100 px-4 py-2 rounded-full">
+              <span className="text-xs font-black text-slate-500 bg-slate-100 px-4 py-2 rounded-full whitespace-nowrap">
                 {weekOffset === 0
                   ? "მიმდინარე კვირა"
                   : weekOffset > 0
@@ -278,106 +300,97 @@ export default function SchedulePage() {
               იტვირთება...
             </div>
           ) : (
-            <div className="grid grid-cols-6 gap-4">
-              {DAYS.map((day, idx) => {
-                const isToday = idx === todayIndex;
-                const dayEntries = byDay[idx] ?? [];
-
-                return (
-                  <div key={idx} className="flex flex-col gap-3">
-                    {/* Day header */}
-                    <div
-                      className={`rounded-2xl px-4 py-3 text-center border ${
-                        isToday
-                          ? "bg-indigo-600 border-indigo-600 text-white"
-                          : "bg-white border-slate-200 text-slate-500"
-                      }`}
-                    >
-                      <p className="text-[10px] font-black uppercase tracking-widest">
+            <>
+              {/* ── MOBILE: day tabs + single column ── */}
+              <div className="md:hidden space-y-4">
+                {/* Scrollable day tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+                  {DAYS.map((day, idx) => {
+                    const isToday = idx === todayIndex;
+                    const isActive = idx === activeDay;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveDay(idx)}
+                        className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all ${
+                          isActive
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                            : isToday
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                              : "bg-white border-slate-200 text-slate-500"
+                        }`}
+                      >
                         {day}
+                        {isToday && (
+                          <span className="block text-[8px] font-bold opacity-70">
+                            დღეს
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active day's entries */}
+                <div className="space-y-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    {DAYS_FULL[activeDay]}
+                  </p>
+                  {(byDay[activeDay] ?? []).length === 0 ? (
+                    <div className="rounded-[1.5rem] border-2 border-dashed border-slate-200 p-8 flex items-center justify-center">
+                      <p className="text-xs text-slate-300 font-bold text-center">
+                        გაკვეთილი არ არის
                       </p>
-                      {isToday && (
-                        <p className="text-[9px] font-bold opacity-70 mt-0.5">
-                          დღეს
+                    </div>
+                  ) : (
+                    (byDay[activeDay] ?? []).map((entry) => (
+                      <EntryCard key={entry.id} entry={entry} />
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* ── DESKTOP: 6-column grid ── */}
+              <div className="hidden md:grid grid-cols-6 gap-4">
+                {DAYS.map((day, idx) => {
+                  const isToday = idx === todayIndex;
+                  const dayEntries = byDay[idx] ?? [];
+                  return (
+                    <div key={idx} className="flex flex-col gap-3">
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-center border ${
+                          isToday
+                            ? "bg-indigo-600 border-indigo-600 text-white"
+                            : "bg-white border-slate-200 text-slate-500"
+                        }`}
+                      >
+                        <p className="text-[10px] font-black uppercase tracking-widest">
+                          {day}
                         </p>
+                        {isToday && (
+                          <p className="text-[9px] font-bold opacity-70 mt-0.5">
+                            დღეს
+                          </p>
+                        )}
+                      </div>
+                      {dayEntries.length === 0 ? (
+                        <div className="flex-1 rounded-[1.5rem] border-2 border-dashed border-slate-100 p-4 flex items-center justify-center min-h-[80px]">
+                          <p className="text-[10px] text-slate-300 font-bold text-center">
+                            გაკვეთილი
+                            <br />
+                            არ არის
+                          </p>
+                        </div>
+                      ) : (
+                        dayEntries.map((entry) => (
+                          <EntryCard key={entry.id} entry={entry} />
+                        ))
                       )}
                     </div>
-
-                    {/* Entries */}
-                    {dayEntries.length === 0 ? (
-                      <div className="flex-1 rounded-[1.5rem] border-2 border-dashed border-slate-100 p-4 flex items-center justify-center min-h-[80px]">
-                        <p className="text-[10px] text-slate-300 font-bold text-center">
-                          გაკვეთილი
-                          <br />
-                          არ არის
-                        </p>
-                      </div>
-                    ) : (
-                      dayEntries.map((entry) => {
-                        const col =
-                          COLOR_OPTIONS[entry.color_index ?? 0] ??
-                          COLOR_OPTIONS[0];
-                        return (
-                          <div
-                            key={entry.id}
-                            className={`rounded-[1.5rem] border p-4 transition-all group relative ${col.bg} ${col.border}`}
-                          >
-                            {/* Delete btn */}
-                            {canEdit && (
-                              <button
-                                onClick={() => handleDelete(entry.id)}
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-white/60"
-                              >
-                                <Trash2 size={12} className={col.text} />
-                              </button>
-                            )}
-
-                            <div className={`flex items-center gap-1.5 mb-2`}>
-                              <div
-                                className={`w-1.5 h-1.5 rounded-full ${col.dot}`}
-                              />
-                              <span
-                                className={`text-[9px] font-black uppercase tracking-widest ${col.text} opacity-70`}
-                              >
-                                {entry.start_time} – {entry.end_time}
-                              </span>
-                            </div>
-
-                            <p
-                              className={`font-black text-xs leading-tight mb-2 ${col.text}`}
-                            >
-                              {entry.course_title}
-                            </p>
-
-                            {entry.room && (
-                              <div
-                                className={`flex items-center gap-1 ${col.text} opacity-60`}
-                              >
-                                <MapPin size={10} />
-                                <span className="text-[9px] font-bold">
-                                  {entry.room}
-                                </span>
-                              </div>
-                            )}
-
-                            {entry.lecturer_name && (
-                              <div
-                                className={`flex items-center gap-1 mt-1 ${col.text} opacity-60`}
-                              >
-                                <BookOpen size={10} />
-                                <span className="text-[9px] font-bold truncate">
-                                  {entry.lecturer_name}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           {/* Legend */}
@@ -410,9 +423,10 @@ export default function SchedulePage() {
 
       {/* Add Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          {/* On mobile: sheet from bottom; on sm+: centered card */}
+          <div className="bg-white w-full sm:max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl max-h-[90dvh] overflow-y-auto">
+            <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white rounded-t-[2.5rem] z-10">
               <h2 className="text-lg font-black text-slate-800">
                 გაკვეთილის დამატება
               </h2>
@@ -424,7 +438,7 @@ export default function SchedulePage() {
               </button>
             </div>
 
-            <form onSubmit={handleAdd} className="p-8 space-y-5">
+            <form onSubmit={handleAdd} className="p-6 md:p-8 space-y-5">
               {/* Course */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -535,12 +549,11 @@ export default function SchedulePage() {
                       key={i}
                       type="button"
                       onClick={() => setForm({ ...form, color_index: i })}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${c.dot.replace("bg-", "bg-")} ${
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
                         form.color_index === i
                           ? "border-slate-800 scale-110"
                           : "border-transparent"
                       }`}
-                      style={{ backgroundColor: undefined }}
                     >
                       <span
                         className={`block w-full h-full rounded-full ${c.dot}`}
@@ -568,7 +581,11 @@ export default function SchedulePage() {
 
       {toast && (
         <div
-          className={`fixed bottom-8 right-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-bold z-50 ${toast.type === "ok" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}`}
+          className={`fixed bottom-8 right-4 md:right-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-bold z-50 ${
+            toast.type === "ok"
+              ? "bg-emerald-600 text-white"
+              : "bg-rose-600 text-white"
+          }`}
         >
           {toast.type === "ok" ? (
             <CheckCircle2 size={18} />
